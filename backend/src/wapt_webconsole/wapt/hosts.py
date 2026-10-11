@@ -41,6 +41,11 @@ def user_name(value: Any) -> str:
     return clean(value)
 
 
+def host_name(value: Any) -> str:
+    """FQDN as reported by the agent, without the line breaks some agents insert."""
+    return clean(value).replace(" ", "")
+
+
 def ipv4s(values: list | None) -> list[str]:
     """IPv4 addresses that identify the host: no loopback, no link-local (169.254/16)."""
     result = []
@@ -58,7 +63,7 @@ def flatten(row: dict) -> dict:
     info = row.get("host_info") or {}
     metrics = row.get("host_metrics") or {}
     update = row.get("last_update_status") or {}
-    name = clean(row.get("computer_fqdn")).replace(" ", "") or clean(row.get("computer_name")) or row["uuid"]
+    name = host_name(row.get("computer_fqdn")) or clean(row.get("computer_name")) or row["uuid"]
     memory = metrics.get("physical_memory")
     return {
         "uuid": row["uuid"],

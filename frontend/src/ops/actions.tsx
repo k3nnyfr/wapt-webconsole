@@ -10,6 +10,7 @@ import {
   IconDownload,
   IconEraser,
   IconFolderPlus,
+  IconTrashX,
   IconId,
   IconListCheck,
   IconPackage,
@@ -29,6 +30,7 @@ import { type ActionName, type ActionResult, ApiError, type Host, type Me, type 
   roleAtLeast } from "../api";
 import type { Action } from "../components/ActionMenu";
 import { useAssign } from "./assign";
+import { useDeleteHosts } from "./repo";
 import { useSigning } from "./signing";
 
 export interface Target {
@@ -249,6 +251,7 @@ function copy(text: string, what: string) {
 export function useHostMenu(me: Me) {
   const run = useRunAction();
   const assign = useAssign();
+  const deleteHosts = useDeleteHosts();
   const role = me.user.role;
   const runRef = useRef(run);
   runRef.current = run;
@@ -287,13 +290,15 @@ export function useHostMenu(me: Me) {
         disabled: !hosts.some((h) => h.connected && h.reboot_allowed), hint: "non autorisé par l'agent" }),
       ...act("shutdown", <IconPower size={16} />, { admin: true, color: "red",
         disabled: !hosts.some((h) => h.connected && h.shutdown_allowed), hint: "non autorisé par l'agent" }),
+      ...(roleAtLeast(role, "admin") ? [{ key: "delete-hosts", label: "Retirer de l'inventaire…", color: "red",
+        icon: <IconTrashX size={16} />, onClick: () => deleteHosts(targets) }] : []),
       ...(single ? [
         { key: "copy-name", label: "Copier le nom", icon: <IconCopy size={16} />, onClick: () => copy(single.name, "Nom") },
         ...(single.main_ip ? [{ key: "copy-ip", label: "Copier l'adresse IP", icon: <IconCopy size={16} />,
                                 onClick: () => copy(single.main_ip, "Adresse IP") }] : []),
       ] : []),
     ];
-  }, [role, assign]);
+  }, [role, assign, deleteHosts]);
 }
 
 /** Actions on one package of one host (host detail, Packages tab). */

@@ -1,7 +1,8 @@
 // Backend API client: session cookie, CSRF token on requests that change state, login redirect on 401.
 
 export class ApiError extends Error {
-  constructor(public status: number, message: string) {
+  /** ``detail`` of the answer when it is structured (e.g. why a deletion is refused) */
+  constructor(public status: number, message: string, public detail?: Record<string, unknown>) {
     super(message);
   }
 }
@@ -20,6 +21,36 @@ export function loginUrl(): string {
   return `/auth/login?next=${encodeURIComponent(next.startsWith("/?auth_error") ? "/" : next)}`;
 }
 
+function errorOf(status: number, data: { detail?: unknown } | null): ApiError {
+  const detail = data?.detail;
+  if (detail && typeof detail === "object" && !Array.isArray(detail)) {
+    const d = detail as Record<string, unknown>;
+    return new ApiError(status, String(d.message ?? `HTTP ${status}`), d);
+  }
+  if (Array.isArray(detail)) return new ApiError(status, detail.map((e) => e?.msg ?? String(e)).join(" ; "));
+  return new ApiError(status, typeof detail === "string" ? detail : `HTTP ${status}`);
+}
+
+/** Multipart upload with progress (fetch cannot report upload progress). */
+export function upload<T>(path: string, file: File, onProgress: (fraction: number) => void): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", path);
+    xhr.setRequestHeader("X-CSRF-Token", csrfToken);
+    xhr.upload.onprogress = (e) => e.lengthComputable && onProgress(e.loaded / e.total);
+    xhr.onload = () => {
+      let data = null;
+      try { data = JSON.parse(xhr.responseText); } catch { /* not JSON */ }
+      if (xhr.status >= 200 && xhr.status < 300) resolve(data as T);
+      else reject(errorOf(xhr.status, data));
+    };
+    xhr.onerror = () => reject(new ApiError(0, "réseau indisponible"));
+    const form = new FormData();
+    form.append("file", file);
+    xhr.send(form);
+  });
+}
+
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const headers: Record<string, string> = { Accept: "application/json" };
   if (body !== undefined) headers["Content-Type"] = "application/json";
@@ -35,7 +66,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     throw new ApiError(401, "redirection vers la connexion");
   }
   const data = await resp.json().catch(() => null);
-  if (!resp.ok) throw new ApiError(resp.status, data?.detail ?? `HTTP ${resp.status}`);
+  if (!resp.ok) throw errorOf(resp.status, data);
   return data as T;
 }
 
@@ -260,4 +291,19 @@ export interface AssignmentResult {
   conflicts: { uuid: string; name: string; expected: string | null; found: string | null }[];
   failed: { uuid: string; name: string; error: string }[];
   upgrade: string | null;
+}
+
+export interface CleanupCandidate {
+  package: string;
+  version: string;
+  target: string;
+  newest: string;
+  size: number;
+  package_uuid: string;
+  filename: string;
+}
+
+export interface PackageUsage {
+  dependents: string[];
+  hosts: string[];
 }

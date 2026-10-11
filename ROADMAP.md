@@ -67,10 +67,11 @@ Retours du premier essai sur wapt-console.example.org (2026-10-11) intégrés.
 - [ ] Option B : signature dans le navigateur (WebCrypto, RSA PKCS#1 v1.5 / SHA-256 sur JSON canonique), la clé ne quittant jamais l'appareil ; à prototyper comme en phase 0 (actions, puis paquets en deux temps : `control` puis manifeste)
 
 ## v0.6 — Gestion du dépôt
-- [ ] Suppression de paquets, refusée si un autre paquet en dépend
-- [ ] Upload d'un `.wapt` déjà signé
-- [ ] Nettoyage des anciennes versions
-- [ ] Suppression de machines de l'inventaire
+- [x] Suppression d'un paquet, refusée tant qu'un paquet, un groupe ou un paquet machine en dépend (raisons affichées) ; suppression d'une ancienne version, refusée si elle est exigée explicitement (`paquet(=version)`)
+- [x] Envoi d'un `.wapt` déjà signé (contrôle du paquet, progression, fichiers temporaires hors mémoire, taille limitée)
+- [x] Nettoyage des versions remplacées par cible (système, architecture, langue, maturité), en gardant N versions précédentes ; plan recalculé au moment de supprimer
+- [x] Retrait de machines de l'inventaire, avec ou sans leur paquet machine
+- [x] README avec captures d'écran, serveur de démonstration et script de captures reproductibles
 
 ## v0.7 — Store *(phase 2)*
 - [ ] Parcourir et rechercher le store Tranquil IT (filtres OS, architecture, maturité, licence)

@@ -17,7 +17,7 @@ from typing import Any
 
 from .signing import Signer, SigningError
 from .wapt.client import WaptClient, WaptError
-from .wapt.hosts import clean
+from .wapt.hosts import host_name
 
 UPLOAD_BATCH = 20
 
@@ -163,7 +163,7 @@ async def group_versions(client: WaptClient, name: str) -> list[dict]:
 async def hosts_using(client: WaptClient, name: str) -> list[str]:
     """Hosts whose host package depends on ``name``."""
     rows = await client.call("GET", "api/v3/packages", params={"sections": "host", "dependencies": name}) or []
-    return sorted(clean(r.get("name") or r.get("package")) for r in rows
+    return sorted(host_name(r.get("name") or r.get("package")) for r in rows
                   if name in {base_name(d) for d in csv(r.get("depends"))})
 
 

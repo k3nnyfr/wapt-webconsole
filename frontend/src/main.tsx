@@ -15,6 +15,7 @@ import HostsPage from "./hosts/HostsPage";
 import JournalPage from "./journal/JournalPage";
 import { ActionsProvider } from "./ops/actions";
 import { AssignProvider } from "./ops/assign";
+import { RepoAdminProvider } from "./ops/repo";
 import { SigningProvider } from "./ops/signing";
 import RepoPage from "./repo/RepoPage";
 
@@ -75,9 +76,11 @@ function App() {
   return (
     <SigningProvider me={me!}>
       <AssignProvider>
-        <ActionsProvider>
-          <RouterProvider router={router} />
-        </ActionsProvider>
+        <RepoAdminProvider>
+          <ActionsProvider>
+            <RouterProvider router={router} />
+          </ActionsProvider>
+        </RepoAdminProvider>
       </AssignProvider>
     </SigningProvider>
   );

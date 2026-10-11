@@ -6,7 +6,7 @@ from collections import defaultdict
 from typing import Any
 
 from .client import WaptClient
-from .hosts import clean
+from .hosts import clean, host_name
 
 SECTIONS = {"package": "base", "group": "group"}
 
@@ -90,7 +90,7 @@ async def package_detail(client: WaptClient, name: str) -> dict | None:
         seen.add(r.get("host"))
         hosts.append({
             "uuid": r.get("host"),
-            "name": clean(r.get("host_computer_fqdn")).replace(" ", "") or clean(r.get("host_description")),
+            "name": host_name(r.get("host_computer_fqdn")) or clean(r.get("host_description")),
             "version": r.get("version") or "",
             "install_status": r.get("install_status") or "",
             "install_date": r.get("install_date") or "",

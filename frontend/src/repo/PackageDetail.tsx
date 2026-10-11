@@ -1,8 +1,9 @@
 // Package or group detail: description, content, versions in the repository, hosts where it is deployed.
 
-import { Alert, Anchor, Badge, Button, Card, Drawer, Group, Loader, ScrollArea, Stack, Table, Text, Title,
-  UnstyledButton } from "@mantine/core";
+import { ActionIcon, Alert, Anchor, Badge, Button, Card, Drawer, Group, Loader, ScrollArea, Stack, Table, Text,
+  Title, Tooltip, UnstyledButton } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
+import { IconTrash } from "@tabler/icons-react";
 import { useQuery } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
 import { useNavigate } from "react-router";
@@ -11,6 +12,7 @@ import { type PackageDetail as Detail, type Me, api, roleAtLeast } from "../api"
 import { RelativeDate, StatusBadge } from "../hosts/columns";
 import { useAssign } from "../ops/assign";
 import { GroupDelete, GroupEditor } from "../ops/groups";
+import { PackageDeleteDialog } from "../ops/repo";
 import { PackageIcon, formatSize } from "./common";
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
@@ -23,14 +25,15 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-export default function PackageDetail({ name, base, me, onClose }: {
-  name: string | undefined; base: "/packages" | "/groups"; me: Me; onClose: () => void;
+export default function PackageDetail({ name, me, onClose }: {
+  name: string | undefined; me: Me; onClose: () => void;
 }) {
   const phone = useMediaQuery("(max-width: 48em)");
   const assign = useAssign();
   const admin = roleAtLeast(me.user.role, "admin");
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [deletingVersion, setDeletingVersion] = useState<string | null | undefined>(undefined); // null: whole package
   const navigate = useNavigate();
   const { data, error, isLoading } = useQuery({
     queryKey: ["package", name],
@@ -68,6 +71,8 @@ export default function PackageDetail({ name, base, me, onClose }: {
               )}
               {group && <Button size="xs" variant="default" onClick={() => setEditing(true)}>Modifier</Button>}
               {group && <Button size="xs" variant="subtle" color="red" onClick={() => setDeleting(true)}>Supprimer</Button>}
+              {!group && <Button size="xs" variant="subtle" color="red" onClick={() => setDeletingVersion(null)}>
+                Supprimer…</Button>}
             </Group>
           )}
           {p.description && <Text size="sm">{p.description}</Text>}
@@ -136,13 +141,27 @@ export default function PackageDetail({ name, base, me, onClose }: {
                       <Table.Td>{v.version}</Table.Td>
                       <Table.Td>{[v.target_os, v.architecture, v.maturity].filter(Boolean).join(" · ")}</Table.Td>
                       <Table.Td>{v.signature_date && <RelativeDate iso={v.signature_date} />}</Table.Td>
+                      {admin && (
+                        <Table.Td w={40}>
+                          {v.version !== p.version && (
+                            <Tooltip label="Supprimer cette version">
+                              <ActionIcon variant="subtle" color="red" size="sm" aria-label={`Supprimer ${v.version}`}
+                                          onClick={() => setDeletingVersion(v.version)}><IconTrash size={14} /></ActionIcon>
+                            </Tooltip>
+                          )}
+                        </Table.Td>
+                      )}
                     </Table.Tr>
                   ))}
                 </Table.Tbody>
               </Table>
             </Stack>
           )}
-          {base === "/packages" && <Text size="xs" c="dimmed">Suppression et nettoyage du dépôt : v0.6.</Text>}
+          {deletingVersion !== undefined && (
+            <PackageDeleteDialog name={p.package} version={deletingVersion ?? undefined}
+                                 onClose={() => setDeletingVersion(undefined)}
+                                 onDeleted={() => (deletingVersion === null ? onClose() : undefined)} />
+          )}
           {editing && <GroupEditor group={p} onClose={() => setEditing(false)} />}
           {deleting && <GroupDelete group={p} onClose={() => setDeleting(false)} onDeleted={onClose} />}
         </Stack>

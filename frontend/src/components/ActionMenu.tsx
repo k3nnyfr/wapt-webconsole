@@ -61,7 +61,7 @@ export function ActionMenuProvider({ children }: { children: ReactNode }) {
         </Drawer>
       ) : (
         <Menu opened={state !== null} onChange={(o) => !o && close()} position="bottom-start" shadow="md"
-              width={260} withinPortal>
+              width={300} withinPortal>
           <Menu.Target>
             <div style={{ position: "fixed", left: state?.x ?? 0, top: state?.y ?? 0, width: 1, height: 1 }} />
           </Menu.Target>

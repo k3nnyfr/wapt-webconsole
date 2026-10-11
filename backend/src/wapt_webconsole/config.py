@@ -48,6 +48,8 @@ class Settings(BaseSettings):
     # Persistent data (audit journal)
     data_dir: Path = Path("/data")
     journal_retention_days: int = 365
+    # Largest package accepted by the upload (MB); staged in <data_dir>/tmp, not in memory
+    max_upload_mb: int = 2048
 
     # OpenID Connect (Authelia or any provider)
     oidc_issuer: str = ""

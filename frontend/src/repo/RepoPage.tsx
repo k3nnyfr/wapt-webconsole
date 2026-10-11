@@ -2,7 +2,8 @@
 
 import { Alert, Button, Card, Group, Loader, ScrollArea, Stack, Table, Text, TextInput, Title } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
-import { IconChevronDown, IconChevronUp, IconPlus, IconSearch, IconSelector } from "@tabler/icons-react";
+import { IconChevronDown, IconChevronUp, IconEraser, IconPlus, IconSearch, IconSelector,
+  IconUpload } from "@tabler/icons-react";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { useMatch, useNavigate } from "react-router";
@@ -11,6 +12,7 @@ import { type Me, type RepoPackage, api, roleAtLeast } from "../api";
 import { RelativeDate } from "../hosts/columns";
 import { usePersistentState } from "../hosts/prefs";
 import { GroupEditor } from "../ops/groups";
+import { CleanupDialog, UploadDialog } from "../ops/repo";
 import PackageDetail from "./PackageDetail";
 import { Deployment, PackageIcon } from "./common";
 
@@ -26,6 +28,9 @@ const SORTS: Record<SortKey, (p: RepoPackage) => string | number> = {
 
 export default function RepoPage({ kind, me }: { kind: "package" | "group"; me: Me }) {
   const [creating, setCreating] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [cleaning, setCleaning] = useState(false);
+  const admin = roleAtLeast(me.user.role, "admin");
   const phone = useMediaQuery("(max-width: 48em)");
   const navigate = useNavigate();
   const base = kind === "group" ? "/groups" : "/packages";
@@ -71,11 +76,20 @@ export default function RepoPage({ kind, me }: { kind: "package" | "group"; me: 
         <Title order={2}>{title}</Title>
         <Group gap="sm">
           {data && <Text size="sm" c="dimmed">{shown.length} / {data.length}</Text>}
-          {kind === "group" && roleAtLeast(me.user.role, "admin") && (
+          {kind === "group" && admin && (
             <Button size="xs" leftSection={<IconPlus size={14} />} onClick={() => setCreating(true)}>Nouveau groupe</Button>
+          )}
+          {kind === "package" && admin && (
+            <>
+              <Button size="xs" variant="default" leftSection={<IconEraser size={14} />}
+                      onClick={() => setCleaning(true)}>Nettoyer</Button>
+              <Button size="xs" leftSection={<IconUpload size={14} />} onClick={() => setUploading(true)}>Envoyer</Button>
+            </>
           )}
         </Group>
       </Group>
+      {uploading && <UploadDialog onClose={() => setUploading(false)} />}
+      {cleaning && <CleanupDialog onClose={() => setCleaning(false)} />}
       {creating && <GroupEditor onClose={() => setCreating(false)}
                                 onSaved={(name) => navigate(`${base}/${encodeURIComponent(name)}`)} />}
       <TextInput placeholder={kind === "group" ? "Rechercher un groupe ou un paquet qu'il contient"
@@ -145,7 +159,7 @@ export default function RepoPage({ kind, me }: { kind: "package" | "group"; me: 
           </Table>
         </ScrollArea>
       )}
-      <PackageDetail name={selected} base={base} me={me} onClose={() => navigate(base)} />
+      <PackageDetail name={selected} me={me} onClose={() => navigate(base)} />
     </Stack>
   );
 }
