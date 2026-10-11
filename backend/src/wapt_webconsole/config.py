@@ -51,6 +51,14 @@ class Settings(BaseSettings):
     # Largest package accepted by the upload (MB); staged in <data_dir>/tmp, not in memory
     max_upload_mb: int = 2048
 
+    # Tranquil IT store: packages tis-foo imported as <repo_prefix>-foo
+    store_url: str = "https://wapt.tranquil.it/wapt"
+    store_prefix: str = "tis"
+    repo_prefix: str = ""                 # default: the prefix most used in the repository
+    # SHA-256 fingerprints of the certificates trusted to check the store packages (Tranquil IT)
+    store_trusted_fingerprints: list[str] = Field(default_factory=lambda: [
+        "8c5127a75392be9cc9afd0dbae1222a673072c308c14d88ab246e23832e8c6bb"])
+
     # OpenID Connect (Authelia or any provider)
     oidc_issuer: str = ""
     oidc_client_id: str = "wapt-webconsole"

@@ -2,7 +2,7 @@
 
 <img src="docs/images/logo.svg" alt="wapt-webconsole logo" width="96">
 
-Console web pour serveur [WAPT](https://www.wapt.fr) **Discovery** : inventaire des machines, actions à distance, affectation de paquets et de groupes, gestion du dépôt. Elle remplace `waptconsole.exe` au quotidien, depuis un navigateur sur ordinateur, tablette ou téléphone Android.
+Console web pour serveur [WAPT](https://www.wapt.fr) **Discovery** : inventaire des machines, actions à distance, affectation de paquets et de groupes, gestion du dépôt, import depuis le store Tranquil IT. Elle remplace `waptconsole.exe` au quotidien, depuis un navigateur sur ordinateur, tablette ou téléphone Android.
 
 **[Documentation](docs/README.md)** · **[Feuille de route](ROADMAP.md)** · Licence [GPL-3.0-or-later](LICENSE), comme WAPT
 
@@ -21,6 +21,7 @@ Console web pour serveur [WAPT](https://www.wapt.fr) **Discovery** : inventaire 
 | **Tâches** | Tâches de l'agent en cours, en attente, en erreur et terminées, avec leurs journaux, actualisées toutes les 3 secondes | opérateur |
 | **Affectation** | Ajouter ou retirer des paquets et des groupes sur des machines : aperçu avant/après, signature, publication, mise à jour immédiate en option | admin |
 | **Paquets et groupes** | Dépôt avec icônes et état de déploiement ; créer, modifier, supprimer des groupes ; envoyer un `.wapt` signé ; supprimer un paquet ; nettoyer les versions remplacées | lecture / admin |
+| **Store** | Catalogue Tranquil IT filtré pour vos systèmes, mises à jour disponibles pour le dépôt, import en arrière-plan (signature d'origine vérifiée, renommage à votre préfixe, signature avec votre clé, dépendances incluses) | lecture / admin |
 | **Journal** | Qui a fait quoi, sur quelles machines, avec quel certificat et quel résultat | opérateur |
 
 Les actions qui modifient le parc sont **signées avec la clé de l'opérateur**, comme dans la console WAPT : les agents refusent toute action ou tout paquet non signé par un certificat de confiance.
@@ -37,6 +38,8 @@ Les actions qui modifient le parc sont **signées avec la clé de l'opérateur**
 | **Paquets** : dépôt, déploiement par paquet (installé, en attente, en erreur) | **Groupes** : contenu, machines, modification |
 | ![Nettoyage des versions remplacées du dépôt](docs/images/cleanup.png) | ![Journal des actions](docs/images/journal.png) |
 | **Nettoyage du dépôt** : versions qu'aucune machine ne peut plus installer | **Journal** : chaque action, son auteur et son signataire |
+| ![Mises à jour disponibles dans le store](docs/images/store.png) | ![Plan d'import depuis le store](docs/images/store-plan.png) |
+| **Store** : versions plus récentes que celles du dépôt, mise à jour en un clic | **Import** : plan avec dépendances et tailles, puis suivi paquet par paquet |
 | ![Déverrouillage de la clé de signature](docs/images/unlock.png) | |
 | **Clé de signature** : apportée depuis l'appareil, gardée en mémoire 30 minutes | |
 
@@ -81,7 +84,7 @@ Puis déclarer la console dans le fournisseur OIDC (Authelia : `deploy/authelia-
 ## Développement
 
 ```bash
-cd backend && uv sync && uv run pytest && uv run ruff check src tests    # 48 tests
+cd backend && uv sync && uv run pytest && uv run ruff check src tests    # 54 tests
 cd frontend && npm ci && npm run dev                                     # interface sur :8080, API sur :8000
 python3 scripts/demo_server.py                                           # interface sur données fictives, sans serveur
 python3 scripts/screenshots.py                                           # captures de docs/images
@@ -99,4 +102,4 @@ python3 scripts/screenshots.py                                           # captu
 - **WAPT Discovery** : les fonctions Enterprise (unités, profils, self-service, WAPTWUA, WADS, ACL) ne sont pas couvertes.
 - Les actions ne touchent que les machines **connectées** au serveur WAPT ; les autres sont signalées, et peuvent être réveillées par Wake-on-LAN.
 - La clé de signature transite jusqu'au serveur de la console le temps du déverrouillage ; la signature entièrement dans le navigateur est à l'étude ([feuille de route](ROADMAP.md)).
-- Import depuis le store Tranquil IT : pas encore (v0.7).
+- Store : seul le certificat Tranquil IT (empreinte configurée) est accepté ; les paquets réservés à WAPT Enterprise et ceux liés à la version du serveur (`waptupgrade`, `waptagent`…) ne sont pas importés.

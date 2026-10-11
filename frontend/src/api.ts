@@ -307,3 +307,80 @@ export interface PackageUsage {
   dependents: string[];
   hosts: string[];
 }
+
+export interface StoreTarget {
+  target: string;
+  version: string;
+  repo_version: string | null;
+  state: "absent" | "update" | "ok";
+  size: number;
+}
+
+/** Store package useful to the fleet (``store.py: catalogue``), ``name`` without prefix. */
+export interface StoreRow {
+  name: string;
+  store_package: string;
+  title: string;
+  description: string;
+  editor: string;
+  categories: string[];
+  licence: string;
+  restricted: boolean;
+  icon: string;
+  homepage: string;
+  version: string;
+  signature_date: string;
+  targets: StoreTarget[];
+  state: "absent" | "update" | "ok";
+  size: number;
+}
+
+export interface StoreCatalogue {
+  rows: StoreRow[];
+  prefix: string;
+  fleet: string[];
+  modified: string;
+  trusted: boolean;
+}
+
+export interface StorePlanItem {
+  store_package: string;
+  target_name: string;
+  version: string;
+  target: string;
+  filename: string;
+  size: number;
+  reason: "requested" | "dependency";
+  repo_version: string | null;
+}
+
+export interface StorePlan {
+  items: StorePlanItem[];
+  refused: string[];
+  missing: string[];
+  size: number;
+  prefix: string;
+}
+
+export interface JobItem {
+  name: string;
+  version: string;
+  target: string;
+  size: number;
+  reason: string;
+  status: "waiting" | "downloading" | "signing" | "uploading" | "done" | "error";
+  progress: number;
+  error: string;
+  imported_version: string;
+}
+
+export interface Job {
+  id: string;
+  user: string;
+  kind: string;
+  items: JobItem[];
+  created: number;
+  status: "running" | "done" | "failed";
+  message: string;
+  finished: number | null;
+}

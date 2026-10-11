@@ -5,13 +5,15 @@ import { useState } from "react";
 import type { DeploymentStats } from "../api";
 
 /** Package icon from the repository (through the backend), or a generic one. */
-export function PackageIcon({ icon, group, size = 28 }: { icon: string; group?: boolean; size?: number }) {
+export function PackageIcon({ icon, group, size = 28, store }: {
+  icon: string; group?: boolean; size?: number; store?: boolean;
+}) {
   const [failed, setFailed] = useState(false);
   if (!icon || failed) {
     const Generic = group ? IconFolders : IconPackage;
     return <Generic size={size} stroke={1.5} color="var(--mantine-color-dimmed)" style={{ flexShrink: 0 }} />;
   }
-  return <Image src={`/api/icons/${icon}.png`} w={size} h={size} fit="contain" alt="" onError={() => setFailed(true)}
+  return <Image src={`/api/icons/${icon}.png${store ? "?source=store" : ""}`} w={size} h={size} fit="contain" alt="" onError={() => setFailed(true)}
                 style={{ flexShrink: 0 }} />;
 }
 

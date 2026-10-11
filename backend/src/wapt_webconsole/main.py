@@ -10,12 +10,14 @@ from urllib.parse import urlsplit
 from fastapi import Depends, FastAPI, HTTPException, Path, Request, Response, WebSocket, WebSocketDisconnect
 from starlette.middleware.sessions import SessionMiddleware
 
-from . import __version__, auth, operations
+from . import __version__, auth, operations, store_api
 from .auth import User, require
 from .config import Settings, role_at_least
+from .jobs import Jobs
 from .journal import Journal
 from .live import LiveHub
 from .signing import Signer, SignerConfig
+from .store import StoreIndex
 from .wapt import details, repository
 from .wapt.client import WaptClient, WaptError
 from .wapt.hosts import Inventory
@@ -44,9 +46,13 @@ def create_app(settings: Settings | None = None, wapt: WaptClient | None = None)
             waptpython=settings.waptpython, script=settings.signer_script,
             certificate=str(settings.signer_certificate_file or ""), private_key=str(settings.signer_key_file or "")),
             ttl=settings.signer_unlock_minutes * 60)
+        app.state.store_index = StoreIndex(settings.store_url.rstrip("/"), settings.data_dir / "cache" / "store",
+                                           settings.store_trusted_fingerprints)
+        app.state.jobs = Jobs()
         try:
             yield
         finally:
+            await app.state.jobs.close()
             await app.state.signer.close()
             await app.state.live.close()
             await app.state.wapt.close()
@@ -59,6 +65,7 @@ def create_app(settings: Settings | None = None, wapt: WaptClient | None = None)
                        max_age=settings.session_max_age, same_site="lax", https_only=settings.https)
     app.include_router(auth.router)
     app.include_router(operations.router)
+    app.include_router(store_api.router)
 
     @app.get("/api/health", tags=["system"])
     async def health():
@@ -126,12 +133,14 @@ def create_app(settings: Settings | None = None, wapt: WaptClient | None = None)
         return detail
 
     @app.get("/api/icons/{sha256}.png", tags=["repository"])
-    async def icon(request: Request, sha256: IconHash, user: Annotated[User, Depends(require("viewer"))]):
-        """Package icon from the repository, by content hash: cacheable forever."""
+    async def icon(request: Request, sha256: IconHash, user: Annotated[User, Depends(require("viewer"))],
+                   source: str = "repo"):
+        """Package icon from the repository (or the store), by content hash: cacheable forever."""
         cache: dict[str, bytes] = request.app.state.icons
         if sha256 not in cache:
+            base = settings.store_url.rstrip("/") if source == "store" else settings.repo_url
             try:
-                resp = await request.app.state.wapt.fetch(f"{settings.repo_url}/icons/{sha256}.png")
+                resp = await request.app.state.wapt.fetch(f"{base}/icons/{sha256}.png")
             except Exception as e:
                 raise HTTPException(502, "repository unreachable") from e
             if resp.status_code != 200 or not resp.content.startswith(b"\x89PNG"):

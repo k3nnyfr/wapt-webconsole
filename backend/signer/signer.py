@@ -27,6 +27,10 @@ Protocol: one JSON request on stdin, one JSON object per result on stdout, then 
         -> {"ok": true, "ready": true, "cn": ..., "fingerprint": ...}, then one request per stdin line, until EOF:
            {"id": 1, "op": "sign_actions", "actions": [...]} -> {"id": 1, "results": [<as sign_actions>]}
            {"id": 2, "op": "build_packages", "output_dir": "...", "jobs": [...]} -> {"id": 2, "results": [...]}
+           {"id": 3, "op": "import_package", "source": "store.wapt", "output_dir": "...", "prefix": "tsi",
+            "trusted_certs_pem": ["..."], "verify": "full"} -> {"id": 3, "results": [{"ok": true, "path": ...}]}
+           (store package: original signature checked against the trusted certificates, renamed to the prefix,
+            dependencies and conflicts included, then signed with the session key)
         The key is decrypted once and stays in this process only: the backend keeps the process while a user has
         unlocked the key, and ends it (closing stdin) afterwards.
 
@@ -35,7 +39,9 @@ The passphrase only travels on stdin: never on the command line nor in the envir
 
 import json
 import os
+import shutil
 import sys
+import tempfile
 import traceback
 import zipfile
 
@@ -120,6 +126,8 @@ def op_serve(req):
                 results = sign_all(key, chain, request.get("actions"))
             elif op == "build_packages":
                 results = build_all(key, chain, req, request["output_dir"], request.get("jobs"))
+            elif op == "import_package":
+                results = [import_one(key, chain, req, request)]
             else:
                 raise ValueError("unsupported op %r" % op)
             emit({"id": request.get("id"), "results": results})
@@ -167,6 +175,45 @@ def build_all(key, chain, req, output_dir, jobs):
             results.append({"ok": False, "package": job["control"].get("package"),
                             "error": "%s: %s" % (type(e).__name__, e), "trace": traceback.format_exc()})
     return results
+
+
+def import_one(key, chain, req, request):
+    """Store package: check its original signature, rename to our prefix, sign with our key, check again."""
+    source, output_dir = request["source"], request["output_dir"]
+    os.makedirs(output_dir, exist_ok=True)
+    trusted = SSLCABundle()
+    for pem in request.get("trusted_certs_pem") or []:
+        trusted.add_certificates_from_pem(pem_data=pem, trusted=True)
+    work_dir = tempfile.mkdtemp(prefix="wwc-import-", dir=output_dir)
+    try:
+        work_file = os.path.join(work_dir, os.path.basename(source))
+        shutil.copyfile(source, work_file)
+        pe = PackageEntry(waptfile=work_file)
+        original = pe.asrequirement()
+        if request.get("verify", "full") == "full":   # files and signature of the original package
+            unzip_dir = os.path.join(work_dir, "unzipped")
+            pe.unzip_package(target_dir=unzip_dir, cabundle=trusted)
+            shutil.rmtree(unzip_dir, ignore_errors=True)
+            pe = PackageEntry(waptfile=work_file)
+        verified_by = pe.check_control_signature(trusted_bundle=trusted)
+        pe.change_prefix(request["prefix"])
+        pe.change_depends_conflicts_prefix(request["prefix"])
+        if request.get("maturity"):
+            pe.maturity = request["maturity"]
+        pe.sign_package(private_key=key, certificate=chain)
+        final_path = os.path.join(output_dir, pe.make_package_filename())
+        if os.path.exists(final_path):
+            os.remove(final_path)
+        shutil.move(pe.localpath, final_path)
+        check = PackageEntry(waptfile=final_path)
+        check.check_control_signature(trusted_bundle=signer_bundle(req))
+        return {"ok": True, "original": original, "package": check.package, "version": check.version,
+                "depends": check.depends, "path": final_path, "size": os.path.getsize(final_path),
+                "verified_by": getattr(verified_by, "cn", None), "signer": check.signer}
+    except Exception as e:
+        return {"ok": False, "source": source, "error": "%s: %s" % (type(e).__name__, e)}
+    finally:
+        shutil.rmtree(work_dir, ignore_errors=True)
 
 
 def op_build_packages(req):

@@ -36,6 +36,19 @@ Chaque opérateur peut ainsi utiliser sa propre clé. Les agents n'acceptent tou
 
 Pour garder malgré tout une clé sur le serveur, déverrouillable avec la seule passphrase, voir `docker-compose.override.example.yml`.
 
+### Store Tranquil IT
+
+Le backend doit pouvoir joindre `https://wapt.tranquil.it` (index du store, paquets, icônes). Réglages facultatifs dans `.env` :
+
+| Variable | Défaut | Rôle |
+|---|---|---|
+| `WWC_STORE_URL` | `https://wapt.tranquil.it/wapt` | Store (ou un miroir) |
+| `WWC_STORE_PREFIX` | `tis` | Préfixe des paquets du store |
+| `WWC_REPO_PREFIX` | préfixe le plus fréquent du dépôt | Préfixe donné aux paquets importés |
+| `WWC_STORE_TRUSTED_FINGERPRINTS` | certificat Tranquil IT | Empreintes SHA-256 (liste JSON) des certificats acceptés pour vérifier les paquets du store |
+
+L'index (17 Mo) est conservé dans le volume de données et relu toutes les 6 heures au plus, par requête conditionnelle.
+
 ## 3. Authelia
 
 Si Authelia tourne en conteneur sur le même hôte avec une configuration en fichiers, `deploy/authelia-register.sh` fait tout, en root :

@@ -1,7 +1,8 @@
 // Application shell: side navigation on a computer or tablet, bottom navigation bar on a phone.
 
 import { ActionIcon, AppShell, Group, NavLink, Stack, Text, UnstyledButton } from "@mantine/core";
-import { IconDeviceDesktop, IconFolders, IconHistory, IconLogout, IconPackage } from "@tabler/icons-react";
+import { IconBuildingStore, IconDeviceDesktop, IconFolders, IconHistory, IconLogout,
+  IconPackage } from "@tabler/icons-react";
 import { useMediaQuery } from "@mantine/hooks";
 import type { ReactNode } from "react";
 import { NavLink as RouterLink, Outlet, useLocation } from "react-router";
@@ -14,6 +15,7 @@ const NAV = [
   { to: "/", label: "Machines", icon: IconDeviceDesktop },
   { to: "/packages", label: "Paquets", icon: IconPackage },
   { to: "/groups", label: "Groupes", icon: IconFolders },
+  { to: "/store", label: "Store", icon: IconBuildingStore },
   { to: "/journal", label: "Journal", icon: IconHistory, operator: true },
 ];
 

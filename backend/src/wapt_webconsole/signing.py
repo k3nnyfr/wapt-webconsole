@@ -131,6 +131,15 @@ class Signer:
         one result per job, ``{"ok": true, "path": ..., "version": ...}`` or ``{"ok": false, "error": ...}``."""
         return await self._call(session, {"op": "build_packages", "jobs": jobs, "output_dir": output_dir})
 
+    async def import_package(self, session: str, source: str, output_dir: str, prefix: str,
+                             trusted_certs_pem: list[str], timeout: float = 1800) -> dict:
+        """Store package checked against ``trusted_certs_pem``, renamed to ``prefix`` and signed with the session key.
+        Large packages take minutes to check, hence the long timeout."""
+        [result] = await self._call(session, {"op": "import_package", "source": source, "output_dir": output_dir,
+                                              "prefix": prefix, "trusted_certs_pem": trusted_certs_pem,
+                                              "verify": "full"}, timeout=timeout)
+        return result
+
     async def close(self) -> None:
         async with self._lock:
             for session in list(self.sessions):
@@ -138,7 +147,7 @@ class Signer:
 
     # --- signer processes -------------------------------------------------------------------------------------
 
-    async def _call(self, session: str, request: dict) -> list[dict]:
+    async def _call(self, session: str, request: dict, timeout: float | None = None) -> list[dict]:
         async with self._lock:
             await self._expire()
             s = self.sessions.get(session)
@@ -150,7 +159,7 @@ class Signer:
             s.proc.stdin.write((json.dumps(request) + "\n").encode())
             await s.proc.stdin.drain()
             try:
-                answer = await self._read(s.proc)
+                answer = await self._read(s.proc, timeout)
             except SigningError:
                 async with self._lock:
                     await self._stop(session)
@@ -159,9 +168,9 @@ class Signer:
             raise SigningError(answer["error"])
         return answer["results"]
 
-    async def _read(self, proc: asyncio.subprocess.Process) -> dict:
+    async def _read(self, proc: asyncio.subprocess.Process, timeout: float | None = None) -> dict:
         try:
-            line = await asyncio.wait_for(proc.stdout.readline(), self.timeout)
+            line = await asyncio.wait_for(proc.stdout.readline(), timeout or self.timeout)
         except TimeoutError as e:
             raise SigningError("the signer did not answer") from e
         if not line:

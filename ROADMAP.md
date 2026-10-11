@@ -73,10 +73,12 @@ Retours du premier essai sur wapt-console.example.org (2026-10-11) intégrés.
 - [x] Retrait de machines de l'inventaire, avec ou sans leur paquet machine
 - [x] README avec captures d'écran, serveur de démonstration et script de captures reproductibles
 
-## v0.7 — Store *(phase 2)*
-- [ ] Parcourir et rechercher le store Tranquil IT (filtres OS, architecture, maturité, licence)
-- [ ] Import avec vérification, préfixe et signature, en tâche de fond avec progression
-- [ ] Mises à jour disponibles pour les paquets du dépôt, import groupé
+## v0.7 — Store
+- [x] Index du store Tranquil IT mis en cache (requête conditionnelle), confiance limitée aux empreintes configurées : l'index livre aussi un certificat « CN=test », ignoré
+- [x] Catalogue filtré pour les systèmes du parc (Windows, macOS, Linux), production, langues courantes ; cibles « toutes architectures » périmées écartées ; recherche, catégories, état par rapport au dépôt
+- [x] Paquets réservés à WAPT Enterprise signalés et refusés ; `waptupgrade`, `waptsetup`, `waptagent`, `waptserver` jamais importés
+- [x] Import en tâche de fond : téléchargement (taille et MD5 vérifiés), signature d'origine vérifiée, renommage au préfixe du dépôt (dépendances comprises), signature avec la clé de l'opérateur, envoi ; progression par paquet ; dépendances absentes importées d'abord
+- [x] Mises à jour disponibles pour les paquets du dépôt, « Tout mettre à jour »
 
 ## Plus tard
 - [ ] Préférences d'affichage (colonnes, tri) enregistrées côté serveur, pour les retrouver d'un appareil à l'autre

@@ -7,7 +7,10 @@ cookie is renewed transparently: on a 401 the client logs in again once and repl
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
+from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
 import httpx2 as httpx
@@ -78,9 +81,29 @@ class WaptClient:
             raise WaptError(f"{path}: {payload.get('msg') or f'HTTP {resp.status_code}'}", resp.status_code)
         return payload
 
-    async def fetch(self, url: str) -> httpx.Response:
-        """Unauthenticated GET of a public repository file (icons), with the client TLS settings."""
-        return await self._http.get(url)
+    async def fetch(self, url: str, **kwargs) -> httpx.Response:
+        """Unauthenticated GET of a public file (repository icons, store index), with the client TLS settings."""
+        return await self._http.get(url, **kwargs)
+
+    async def download(self, url: str, target: Path, size: int | None = None, md5: str = "",
+                       on_progress: Callable[[int], None] | None = None) -> None:
+        """Stream a public file to ``target``; its size and MD5 are checked when given."""
+        digest = hashlib.md5(usedforsecurity=False)
+        done = 0
+        async with self._http.stream("GET", url, timeout=httpx.Timeout(60, read=300)) as resp:
+            if resp.status_code != 200:
+                raise WaptError(f"{url}: HTTP {resp.status_code}", resp.status_code)
+            with target.open("wb") as out:
+                async for chunk in resp.aiter_bytes(1024 * 1024):
+                    out.write(chunk)
+                    digest.update(chunk)
+                    done += len(chunk)
+                    if on_progress:
+                        on_progress(done)
+        if size and done != size:
+            raise WaptError(f"{url}: {done} bytes received, {size} expected")
+        if md5 and digest.hexdigest() != md5.lower():
+            raise WaptError(f"{url}: MD5 mismatch")
 
     # --- read-only API ---------------------------------------------------------------------------------------
 

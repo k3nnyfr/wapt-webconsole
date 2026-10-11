@@ -18,6 +18,7 @@ import { AssignProvider } from "./ops/assign";
 import { RepoAdminProvider } from "./ops/repo";
 import { SigningProvider } from "./ops/signing";
 import RepoPage from "./repo/RepoPage";
+import StorePage from "./store/StorePage";
 
 const theme = createTheme({ primaryColor: "blue", defaultRadius: "md" });
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: true } } });
@@ -63,6 +64,7 @@ function App() {
             { path: "/", element: <HostsPage me={me} />, children: [{ path: "hosts/:uuid", element: null }] },
             { path: "/packages", element: <RepoPage kind="package" me={me} />, children: [{ path: ":name", element: null }] },
             { path: "/groups", element: <RepoPage kind="group" me={me} />, children: [{ path: ":name", element: null }] },
+            { path: "/store", element: <StorePage me={me} /> },
             { path: "/journal", element: <JournalPage /> },
             { path: "*", element: <Navigate to="/" replace /> },
           ],

@@ -133,6 +133,46 @@ CLEANUP = [
 ]
 
 
+def store_row(name, title, version, state, repo_version=None, categories=("Utilitaires",), restricted=False,
+              size=48_000_000):
+    targets = [{"target": "windows · x64 · all", "version": version, "repo_version": repo_version, "state": state,
+                "size": size}]
+    return {"name": name, "store_package": f"tis-{name}", "title": title, "version": version, "state": state,
+            "description": f"{title} : description du store", "editor": title.split()[0],
+            "categories": list(categories), "licence": "proprietary_free" + (",wapt_enterprise" if restricted else ""),
+            "restricted": restricted, "icon": "", "homepage": "https://example.org", "signature_date": iso(30),
+            "targets": targets, "size": size}
+
+
+STORE = [
+    store_row("7zip", "7-Zip", "26.4-44", "update", "26.3-44"),
+    store_row("blender", "Blender", "4.5.3-12", "absent", categories=("Graphisme", "3D")),
+    store_row("firefox", "Mozilla Firefox", "132.0-3", "update", "131.0-12", ("Internet",)),
+    store_row("gimp", "GIMP", "3.2.6-3", "absent", categories=("Graphisme",)),
+    store_row("inkscape", "Inkscape", "1.4.2-6", "absent", categories=("Graphisme",)),
+    store_row("keepassxc", "KeePassXC", "2.7.10-4", "ok", "2.7.10-4", ("Sécurité",)),
+    store_row("notepadplusplus", "Notepad++", "8.8.6-21", "absent", categories=("Développement",)),
+    store_row("vlc", "VLC media player", "3.0.21-8", "ok", "3.0.21-8", ("Multimédia",)),
+    store_row("zoom", "Zoom Workplace", "6.6.2-1", "absent", categories=("Communication",), restricted=True),
+]
+
+
+def store_plan(names: list[str]) -> dict:
+    items = []
+    for name in names:
+        row = next((r for r in STORE if r["name"] == name), None)
+        if row and not row["restricted"]:
+            if name == "inkscape":
+                items.append({"store_package": "tis-vcredist", "target_name": "demo-vcredist", "version": "14.51-31",
+                              "target": "windows · all", "filename": "tis-vcredist.wapt", "size": 25_600_000,
+                              "reason": "dependency", "repo_version": None})
+            items.append({"store_package": row["store_package"], "target_name": f"demo-{name}",
+                          "version": row["version"], "target": "windows · x64 · all",
+                          "filename": f"tis-{name}.wapt", "size": row["size"], "reason": "requested",
+                          "repo_version": row["targets"][0]["repo_version"]})
+    return {"items": items, "refused": [], "missing": [], "size": sum(i["size"] for i in items), "prefix": "demo"}
+
+
 def detail(h: dict) -> dict:
     return {"host": h, "hardware": {"bios_vendor": h["manufacturer"], "bios_version": "1.46", "bios_date": "2024-05-25",
                                     "os_installed_on": "2024-03-02T09:12:00+00:00",
@@ -173,6 +213,11 @@ def api(path: str, query: dict, locked: bool):
             {"uuid": h["uuid"], "name": h["name"], "version": item["version"], "install_status": s,
              "install_date": iso(30), "audit_status": "OK"}
             for h, s in zip(HOSTS[:4], ["NEED-UPGRADE", "OK", "OK", "OK"], strict=False)]}
+    if path == "/api/store":
+        return {"rows": STORE, "prefix": "demo", "fleet": ["macos", "windows"], "modified": "Sun, 11 Oct 2026 14:02:15 GMT",
+                "trusted": True}
+    if path == "/api/jobs":
+        return []
     if path == "/api/repository/cleanup":
         return CLEANUP
     if path == "/api/journal":
@@ -215,6 +260,9 @@ SHOTS = {
               "press(lastByText('button', 'Aperçu')); await sleep(1000);",
     "cleanup": "await sleep(1500); press(byText('button', 'Nettoyer'));",
     "unlock": "await sleep(1500); press(document.querySelector('[aria-label=\"Déverrouiller la clé\"]'));",
+    "store-plan": "await sleep(1500); press(byText('[role=tab]', 'Catalogue')); await sleep(600); "
+                  "document.querySelectorAll('tbody tr input[type=checkbox]').forEach((c, i) => { if (i === 1 || i === 2) c.click(); }); "
+                  "await sleep(300); press(lastByText('button', 'Importer')); await sleep(1200);",
     "phone-menu": "await sleep(1500); contextMenu(document.querySelectorAll('.mantine-Card-root')[5]);",
 }
 
@@ -268,6 +316,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         body = json.loads(self.rfile.read(length) or b"{}")
         if url.path == "/api/assignments/preview":
             return self._json(preview(body))
+        if url.path == "/api/store/plan":
+            return self._json(store_plan(body.get("names", [])))
         return self._json({"detail": "read-only demo"}, 403)
 
     def log_message(self, *args):

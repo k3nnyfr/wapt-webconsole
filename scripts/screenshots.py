@@ -45,6 +45,8 @@ SHOTS = {
     "group.png": ("/groups/grp-base", "1440,820"),
     "cleanup.png": ("/packages?shot=cleanup", "1440,700"),
     "journal.png": ("/journal", "1440,560"),
+    "store.png": ("/store", "1440,560"),
+    "store-plan.png": ("/store?shot=store-plan", "1440,760"),
     "unlock.png": ("/?shot=unlock", "1440,720"),
     "mobile.png": (phones("/", "/hosts/demo-0002", "/?shot=phone-menu"),
                    f"{3 * (PHONE_W + 2) + 2 * 24 + 40},{PHONE_H + 42}"),
