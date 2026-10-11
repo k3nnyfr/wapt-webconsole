@@ -1,4 +1,4 @@
-from wapt_webconsole.wapt.hosts import Inventory, flatten, ipv4s
+from wapt_webconsole.wapt.hosts import Inventory, flatten, ipv4s, user_name
 
 ROW = {
     "uuid": "U1",
@@ -30,6 +30,12 @@ def test_flatten():
 def test_flatten_minimal_row():
     h = flatten({"uuid": "U2"})
     assert h["name"] == "U2" and h["connected"] is False and h["memory_gb"] is None and h["ips"] == []
+
+
+def test_user_name():
+    assert user_name("EXAMPLE\\jdoe") == "EXAMPLE\\jdoe"
+    assert user_name("['jdoe-mac', 'console']") == "jdoe-mac"      # macOS agent
+    assert user_name(["", "bob"]) == "bob" and user_name(None) == "" and user_name("[broken") == "[broken"
 
 
 def test_ipv4s():

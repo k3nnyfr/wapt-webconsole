@@ -7,6 +7,7 @@ seconds: every open page polls it, the WAPT server is queried once per period wh
 
 from __future__ import annotations
 
+import ast
 import asyncio
 import ipaddress
 import time
@@ -26,6 +27,18 @@ RAW_COLUMNS = [
 def clean(value: Any) -> str:
     """Single-line text: some agents report names with embedded line breaks."""
     return " ".join(str(value).split()) if value not in (None, "") else ""
+
+
+def user_name(value: Any) -> str:
+    """Last logged on user: a string, but macOS agents report a list, sometimes serialized as its Python repr."""
+    if isinstance(value, str) and value.startswith("["):
+        try:
+            value = ast.literal_eval(value)
+        except (ValueError, SyntaxError):
+            pass
+    if isinstance(value, (list, tuple)):
+        value = next((v for v in value if v), "")
+    return clean(value)
 
 
 def ipv4s(values: list | None) -> list[str]:
@@ -56,7 +69,7 @@ def flatten(row: dict) -> dict:
         "main_ip": clean(row.get("main_ip")),
         "ips": ipv4s(row.get("connected_ips")),
         "mac": next((m for m in row.get("mac_addresses") or [] if m), ""),
-        "last_user": clean(row.get("last_logged_on_user")),
+        "last_user": user_name(row.get("last_logged_on_user")),
         "users": [clean(u) for u in row.get("connected_users") or [] if u],
         "os_name": clean(row.get("os_name")),
         "os_version": clean(row.get("os_version")),
