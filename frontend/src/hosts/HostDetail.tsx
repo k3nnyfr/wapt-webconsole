@@ -173,8 +173,9 @@ function Packages({ uuid }: { uuid: string }) {
       </Group>
       <Text size="xs" c="dimmed">{shown.length} / {data?.length} paquets · toucher un paquet pour ses journaux</Text>
       <Stack gap={4}>
-        {shown.map((p) => (
-          <UnstyledButton key={`${p.package}-${p.version}`} onClick={() => setLog(p)}>
+        {shown.map((p, i) => (
+          // WAPT may report the same package twice (to install and to upgrade): the index keeps keys unique
+          <UnstyledButton key={`${p.package}-${p.version}-${i}`} onClick={() => setLog(p)}>
             <Card withBorder radius="sm" padding="xs">
               <Group justify="space-between" wrap="nowrap" gap="xs">
                 <Stack gap={0} style={{ minWidth: 0 }}>
