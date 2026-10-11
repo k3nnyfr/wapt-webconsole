@@ -2,9 +2,11 @@
 
 <img src="docs/images/logo.svg" alt="wapt-webconsole logo" width="96">
 
+![release](https://img.shields.io/badge/release-v0.7.0-blue.svg)
+
 Console web pour serveur [WAPT](https://www.wapt.fr) **Discovery** : inventaire des machines, actions à distance, affectation de paquets et de groupes, gestion du dépôt, import depuis le store Tranquil IT. Elle remplace `waptconsole.exe` au quotidien, depuis un navigateur sur ordinateur, tablette ou téléphone Android.
 
-**[Documentation](docs/README.md)** · **[Feuille de route](ROADMAP.md)** · Licence [GPL-3.0-or-later](LICENSE), comme WAPT
+**[Documentation](docs/README.md)** · **[Changelog](CHANGELOG.md)** · **[Feuille de route](ROADMAP.md)** · Licence [GPL-3.0-or-later](LICENSE), comme WAPT
 
 > Projet en cours de développement, dépôt privé.
 
