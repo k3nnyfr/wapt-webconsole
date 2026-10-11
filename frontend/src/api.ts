@@ -93,3 +93,48 @@ export interface HostsAnswer {
   read_at: number;
   server: string;
 }
+
+export interface HostDetail {
+  host: Host;
+  hardware: {
+    bios_vendor: string;
+    bios_version: string;
+    bios_date: string;
+    os_installed_on: string;
+    drives: { name: string; filesystem: string; size_gb: number | null; free_gb: number | null; free_percent: number | null }[];
+    gateways: string[];
+    networks: string[];
+  };
+  host_package: {
+    version: string;
+    depends: string[];
+    conflicts: string[];
+    signer: string;
+    signature_date: string;
+  } | null;
+}
+
+export interface HostPackage {
+  package: string;
+  name: string;
+  version: string;
+  section: string;
+  maturity: string;
+  description: string;
+  install_status: string;
+  install_date: string;
+  install_output: string;
+  explicit_by: string;
+  audit_status: string;
+  audit_on: string;
+  audit_output: string;
+}
+
+export interface Software {
+  name: string;
+  version: string;
+  publisher: string;
+  install_date: string;
+  system_component: boolean;
+  key: string;
+}

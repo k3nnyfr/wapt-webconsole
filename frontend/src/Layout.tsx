@@ -24,7 +24,7 @@ async function logout() {
 export default function Layout({ me }: { me: Me }) {
   const { pathname } = useLocation();
   const phone = useMediaQuery("(max-width: 48em)");
-  const active = (to: string) => (to === "/" ? pathname === "/" : pathname.startsWith(to));
+  const active = (to: string) => (to === "/" ? pathname === "/" || pathname.startsWith("/hosts") : pathname.startsWith(to));
 
   return (
     <AppShell

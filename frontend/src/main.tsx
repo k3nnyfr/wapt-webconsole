@@ -53,7 +53,8 @@ function App() {
         {
           element: <Layout me={me} />,
           children: [
-            { path: "/", element: <HostsPage me={me} /> },
+            // the host detail is a child route: the hosts page stays mounted (search, filters) while it is open
+            { path: "/", element: <HostsPage me={me} />, children: [{ path: "hosts/:uuid", element: null }] },
             { path: "*", element: <Navigate to="/" replace /> },
           ],
         },

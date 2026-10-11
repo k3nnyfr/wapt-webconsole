@@ -38,7 +38,7 @@ Retours du premier essai sur wapt-console.example.org (2026-10-11) intégrés.
   - WAPT : connexion, état, audit, mises à jour en attente, erreurs, dernière remontée, version de l'agent
 - [x] **Tri sur toutes les colonnes**, par défaut les machines connectées en premier, puis par nom ; tri par menu sur mobile
 - [ ] Recherche et filtres (OS, état, connectée, en erreur) ; liste de cartes sur mobile
-- [ ] Fiche machine : paquets (statut, logs), logiciels, matériel, paquet machine
+- [x] Fiche machine (panneau latéral, plein écran sur mobile, adresse partageable) : résumé, matériel et disques, paquets avec journaux d'installation et d'audit, logiciels, paquet machine
 - [ ] Dépôt privé et groupes en lecture, « machines ayant ce paquet »
 - [ ] Statut en direct par WebSocket
 

@@ -26,6 +26,7 @@ import {
   IconCopy,
   IconDotsVertical,
   IconDownload,
+  IconId,
   IconPackage,
   IconPlugConnected,
   IconRefresh,
@@ -36,10 +37,12 @@ import {
 } from "@tabler/icons-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
+import { useMatch, useNavigate } from "react-router";
 
 import { type Host, type HostsAnswer, type Me, api } from "../api";
 import { type Action, useActionMenu } from "../components/ActionMenu";
 import ColumnsPicker from "./ColumnsPicker";
+import HostDetail from "./HostDetail";
 import {
   COLUMNS,
   COLUMN_BY_ID,
@@ -73,9 +76,10 @@ function copy(text: string, what: string) {
     .catch(() => notifications.show({ message: "Copie impossible", color: "red" }));
 }
 
-function hostActions(h: Host): Action[] {
+function hostActions(h: Host, open: (uuid: string) => void): Action[] {
   const soon = { disabled: true, hint: "v0.4" };
   return [
+    { key: "open", label: "Ouvrir la fiche", icon: <IconId size={16} />, onClick: () => open(h.uuid) },
     { key: "update", label: "Mettre à jour l'index", icon: <IconRefresh size={16} />, ...soon },
     { key: "upgrade", label: "Appliquer les mises à jour", icon: <IconDownload size={16} />, ...soon },
     { key: "install", label: "Installer un paquet…", icon: <IconPackage size={16} />, ...soon },
@@ -114,6 +118,10 @@ export default function HostsPage({ me }: { me: Me }) {
   const phone = useMediaQuery("(max-width: 48em)");
   const queryClient = useQueryClient();
   const { bind, openFrom } = useActionMenu();
+  const selected = useMatch("/hosts/:uuid")?.params.uuid;
+  const navigate = useNavigate();
+  const open = (uuid: string) => navigate(`/hosts/${uuid}`);
+  const actions = (h: Host) => hostActions(h, open);
   const [search, setSearch] = useState("");
   const [quick, setQuick] = useState<QuickFilter>("all");
   const prefix = `wwc.${me.user.username}.hosts`;
@@ -147,7 +155,7 @@ export default function HostsPage({ me }: { me: Me }) {
       : { column: id, desc: COLUMN_BY_ID[id].sort !== "text" });   // numbers, dates: largest first
   const more = (h: Host) => (
     <ActionIcon variant="subtle" color="gray" size="lg" aria-label="Actions"
-                onClick={(e) => openFrom(e, h.name, hostActions(h))}>
+                onClick={(e) => openFrom(e, h.name, actions(h))}>
       <IconDotsVertical size={18} />
     </ActionIcon>
   );
@@ -209,8 +217,9 @@ export default function HostsPage({ me }: { me: Me }) {
       {phone ? (
         <Stack gap="xs">
           {hosts.map((h) => (
-            <Card key={h.uuid} withBorder padding="sm" radius="md" {...bind(h.name, hostActions(h))}
-                  style={{ userSelect: "none", WebkitTouchCallout: "none" }}>
+            <Card key={h.uuid} withBorder padding="sm" radius="md" {...bind(h.name, actions(h))}
+                  onClick={() => open(h.uuid)}
+                  style={{ userSelect: "none", WebkitTouchCallout: "none", cursor: "pointer" }}>
               <Group justify="space-between" wrap="nowrap" align="flex-start">
                 <Stack gap={4} style={{ minWidth: 0 }}>
                   <Text fw={600} truncate>{h.name}</Text>
@@ -250,7 +259,9 @@ export default function HostsPage({ me }: { me: Me }) {
             </Table.Thead>
             <Table.Tbody>
               {hosts.map((h) => (
-                <Table.Tr key={h.uuid} {...bind(h.name, hostActions(h))}>
+                <Table.Tr key={h.uuid} {...bind(h.name, actions(h))} onClick={() => open(h.uuid)}
+                          style={{ cursor: "pointer" }}
+                          bg={h.uuid === selected ? "var(--mantine-color-blue-light)" : undefined}>
                   {columns.map((id) => (
                     <Table.Td key={id} style={COLUMN_BY_ID[id].nowrap ? { whiteSpace: "nowrap" } : undefined}>
                       <Cell column={COLUMN_BY_ID[id]} host={h} />
@@ -263,6 +274,7 @@ export default function HostsPage({ me }: { me: Me }) {
           </Table>
         </ScrollArea>
       )}
+      <HostDetail uuid={selected} onClose={() => navigate("/")} />
     </Stack>
   );
 }

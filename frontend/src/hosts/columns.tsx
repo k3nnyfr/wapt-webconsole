@@ -19,9 +19,12 @@ export interface Column {
 
 const STATUS_COLORS: Record<string, string> = {
   OK: "green", ERROR: "red", WARNING: "orange", "TO-UPGRADE": "orange", RUNNING: "blue",
+  "NEED-INSTALL": "orange", "NEED-UPGRADE": "orange", "NEED-REMOVE": "orange", UNKNOWN: "gray",
 };
 const STATUS_LABELS: Record<string, string> = {
   OK: "OK", ERROR: "Erreur", WARNING: "Alerte", "TO-UPGRADE": "À mettre à jour", RUNNING: "En cours",
+  "NEED-INSTALL": "À installer", "NEED-UPGRADE": "À mettre à jour", "NEED-REMOVE": "À désinstaller",
+  UNKNOWN: "Inconnu",
 };
 
 export function StatusBadge({ value }: { value: string }) {
