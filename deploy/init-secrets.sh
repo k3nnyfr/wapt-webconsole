@@ -23,10 +23,8 @@ if [ ! -s secrets/oidc_client_secret ]; then
     new_client=1
 fi
 
-# Signing certificate and key of the WAPT administrator, copied by hand: the key must stay encrypted
-for f in signer.crt signer.pem; do
-    [ -s "secrets/$f" ] || echo "À copier : secrets/$f (certificat et clé PEM chiffrée de l'administrateur WAPT)"
-done
+# Optional signing key stored on the server (docker-compose.override.example.yml); by default each operator brings
+# their own encrypted key when unlocking, and nothing is stored here
 if [ -s secrets/signer.pem ] && ! grep -q "ENCRYPTED" secrets/signer.pem; then
     echo "ATTENTION : secrets/signer.pem n'est pas chiffrée : la protéger par une passphrase avant de l'utiliser" >&2
 fi

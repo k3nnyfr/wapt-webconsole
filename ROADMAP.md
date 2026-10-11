@@ -61,6 +61,11 @@ Retours du premier essai sur wapt-console.example.org (2026-10-11) intégrés.
 - [x] Points d'entrée : menu machine et sélection, fiche machine (paquet machine), fiche paquet et groupe (« Affecter à des machines », « Retirer de machines »), page Groupes
 - [x] Dates absolues en RFC 3339 dans toute l'interface
 
+## Sécurité de la clé de signature
+- [x] Option A : clé privée chiffrée et certificat apportés depuis l'appareil de l'opérateur à chaque déverrouillage, gardés en mémoire dans un processus de signature par session, jamais sur disque ; plus aucune clé stockée sur le serveur (2026-10-11)
+- [x] Clés par opérateur possibles ; le journal indique le certificat utilisé (CN, empreinte)
+- [ ] Option B : signature dans le navigateur (WebCrypto, RSA PKCS#1 v1.5 / SHA-256 sur JSON canonique), la clé ne quittant jamais l'appareil ; à prototyper comme en phase 0 (actions, puis paquets en deux temps : `control` puis manifeste)
+
 ## v0.6 — Gestion du dépôt
 - [ ] Suppression de paquets, refusée si un autre paquet en dépend
 - [ ] Upload d'un `.wapt` déjà signé

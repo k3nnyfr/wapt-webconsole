@@ -184,7 +184,7 @@ export const ROLES: Role[] = ["viewer", "operator", "admin"];
 export const roleAtLeast = (role: Role, required: Role) => ROLES.indexOf(role) >= ROLES.indexOf(required);
 
 export interface SigningStatus {
-  configured: boolean;
+  server_key: boolean;          // a key is stored on the console server (optional)
   unlocked: boolean;
   expires_in: number;
   ttl: number;

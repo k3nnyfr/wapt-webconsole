@@ -23,24 +23,44 @@ def signer_config(tmp_path) -> SignerConfig:
 
 # --- signer lifecycle --------------------------------------------------------------------------------------------
 
-async def test_signer_unlock_sign_lock(tmp_path):
+KEY_PEM = ("-----BEGIN RSA PRIVATE KEY-----\nProc-Type: 4,ENCRYPTED\nDEK-Info: AES-256-CBC,00\n\nxx\n"
+           "-----END RSA PRIVATE KEY-----\n")
+CERT_PEM = "-----BEGIN CERTIFICATE-----\nxx\n-----END CERTIFICATE-----\n"
+
+
+async def test_signer_sessions_have_their_own_process(tmp_path):
     signer = Signer(signer_config(tmp_path), ttl=60)
     with pytest.raises(KeyLocked):
         await signer.sign("s1", [{"action": "x"}])
     with pytest.raises(SigningError, match="wrong passphrase"):
         await signer.unlock("s1", "bad")
-    await signer.unlock("s1", "good")
-    assert signer.identity["cn"] == "test-signer" and signer.expires_in("s1") > 0
+    assert (await signer.unlock("s1", "good"))["cn"] == "test-signer"           # key stored on the server
+    assert signer.identity("s1")["cn"] == "test-signer" and signer.expires_in("s1") > 0
     assert (await signer.sign("s1", [{"action": "x", "uuid": "U1"}]))[0]["signature"] == "sig"
     with pytest.raises(KeyLocked):
-        await signer.sign("s2", [{"action": "x"}])                   # another session did not unlock
-    with pytest.raises(SigningError, match="wrong passphrase"):
-        await signer.unlock("s2", "bad")                             # checked even while the process runs
-    await signer.unlock("s2", "good")
+        await signer.sign("s2", [{"action": "x"}])                              # another session did not unlock
+    await signer.unlock("s2", "good", KEY_PEM, CERT_PEM)                        # key brought by the user
+    assert signer.sessions["s1"].proc is not signer.sessions["s2"].proc
     await signer.lock("s1")
-    assert signer._proc is not None                                  # s2 still holds the key
-    await signer.lock("s2")
-    assert signer._proc is None                                      # no unlock left: key gone from memory
+    assert "s1" not in signer.sessions and signer.identity("s1") == {}
+    assert (await signer.sign("s2", [{"action": "x"}]))[0]["signature"] == "sig"
+    await signer.close()
+    assert signer.sessions == {}                                                # keys gone from memory
+
+
+async def test_brought_key_checks(tmp_path):
+    signer = Signer(SignerConfig(waptpython=sys.executable, script=FAKE_SIGNER), ttl=60)   # no key on the server
+    assert not signer.config.configured
+    with pytest.raises(SigningError, match="choisissez"):
+        await signer.unlock("s1", "good")
+    with pytest.raises(SigningError, match="passphrase"):
+        await signer.unlock("s1", "good", KEY_PEM.replace("Proc-Type: 4,ENCRYPTED\n", ""), CERT_PEM)
+    with pytest.raises(SigningError, match="certificat"):
+        await signer.unlock("s1", "good", KEY_PEM, "")
+    with pytest.raises(SigningError, match="volumineux"):
+        await signer.unlock("s1", "good", KEY_PEM + "x" * 70_000, CERT_PEM)
+    await signer.unlock("s1", "good", KEY_PEM, CERT_PEM)
+    await signer.close()
 
 
 async def test_signer_expiry(tmp_path):
@@ -49,7 +69,7 @@ async def test_signer_expiry(tmp_path):
     time.sleep(0.1)
     with pytest.raises(KeyLocked):
         await signer.sign("s1", [{"action": "x"}])
-    assert signer._proc is None
+    assert signer.sessions == {}
     await signer.close()
 
 
@@ -136,7 +156,7 @@ def test_action_flow(tmp_path):
     wapt = FakeWapt()
     client = make_client(tmp_path, "wapt-operators", wapt)
     try:
-        assert client.get("/api/signing").json()["configured"] is True
+        assert client.get("/api/signing").json()["server_key"] is True
         upgrade = {"action": "upgrade", "hosts": ["U1", "U2"]}
         assert client.post("/api/actions", json=upgrade).status_code == 423                  # key locked
         assert client.post("/api/signing/unlock", json={"passphrase": "bad"}).status_code == 403
@@ -156,6 +176,13 @@ def test_action_flow(tmp_path):
         journal = client.get("/api/journal").json()
         assert [e["action"] for e in journal] == ["wol", "upgrade", "unlock", "unlock"]
         assert journal[1]["targets"] == [{"uuid": "U1", "name": "pc1"}] and journal[3]["ok"] is False
+        assert journal[1]["params"]["signer"] == "test-signer"                 # which certificate signed
+        assert "clé du serveur : test-signer" in journal[2]["detail"]
+        brought = client.post("/api/signing/unlock", json={"passphrase": "good", "key_pem": "not a key",
+                                                           "certificate_pem": "x"})
+        assert brought.status_code == 422
+        assert client.post("/api/signing/unlock", json={"passphrase": "good", "key_pem": KEY_PEM,
+                                                        "certificate_pem": CERT_PEM}).status_code == 200
         assert client.post("/api/signing/lock").json() == {"unlocked": False}
         assert client.post("/api/actions", json=upgrade).status_code == 423
     finally:

@@ -37,6 +37,9 @@ def client_ip(request: Request) -> str:
 
 async def record(request: Request, user: User, action: str, *, targets=None, params=None, ok=True, detail=""):
     journal: Journal = request.app.state.journal
+    identity = request.app.state.signer.identity(session_id(request))
+    if identity and action not in ("unlock", "lock"):
+        params = {**(params or {}), "signer": identity.get("cn")}      # which certificate signed
     await journal.add(user=user.username, role=user.role, ip=client_ip(request), action=action, targets=targets,
                       params=params, ok=ok, detail=detail)
 
@@ -45,14 +48,18 @@ async def record(request: Request, user: User, action: str, *, targets=None, par
 
 class Unlock(BaseModel):
     passphrase: str = Field(min_length=1, max_length=1024)
+    # key brought by the user (encrypted PEM) and its certificate; kept in the signer process memory only
+    key_pem: str = Field(default="", max_length=65536)
+    certificate_pem: str = Field(default="", max_length=65536)
 
 
 @router.get("/signing")
 async def signing_status(request: Request, user: Annotated[User, Depends(require("viewer"))]):
     signer: Signer = request.app.state.signer
-    remaining = signer.expires_in(session_id(request))
-    return {"configured": signer.config.configured, "unlocked": remaining > 0, "expires_in": int(remaining),
-            "ttl": int(signer.ttl), "identity": signer.identity}
+    sid = session_id(request)
+    remaining = signer.expires_in(sid)
+    return {"server_key": signer.config.configured, "unlocked": remaining > 0, "expires_in": int(remaining),
+            "ttl": int(signer.ttl), "identity": signer.identity(sid)}
 
 
 @router.post("/signing/unlock")
@@ -62,14 +69,17 @@ async def signing_unlock(request: Request, body: Unlock, user: Annotated[User, D
     if len(failures) >= MAX_FAILED_UNLOCKS:
         raise HTTPException(429, "trop d'essais : réessayez dans quelques minutes")
     try:
-        await signer.unlock(session_id(request), body.passphrase)
+        identity = await signer.unlock(session_id(request), body.passphrase, body.key_pem, body.certificate_pem)
     except SigningError as e:
         request.session["unlock_failures"] = [*failures, time.time()]
         await record(request, user, "unlock", ok=False, detail=str(e))
-        raise HTTPException(403 if "passphrase" in str(e) else 503, str(e)) from e
+        status = 403 if str(e) == "wrong passphrase" else 503 if "signer" in str(e) else 422
+        raise HTTPException(status, str(e)) from e
     request.session.pop("unlock_failures", None)
-    await record(request, user, "unlock")
-    return {"unlocked": True, "expires_in": int(signer.ttl)}
+    source = "clé apportée" if body.key_pem else "clé du serveur"
+    await record(request, user, "unlock", params={"signer": identity.get("cn")},
+                 detail=f"{source} : {identity.get('cn')} ({str(identity.get('fingerprint'))[:16]}…)")
+    return {"unlocked": True, "expires_in": int(signer.ttl), "identity": identity}
 
 
 @router.post("/signing/lock")

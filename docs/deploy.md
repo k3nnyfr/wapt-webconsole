@@ -30,7 +30,11 @@ cp .env.example .env          # WWC_PUBLIC_URL, WWC_WAPT_URL, WWC_OIDC_ISSUER
 
 ### Clé de signature
 
-Les actions envoyées aux machines sont signées avec le certificat et la clé de l'administrateur WAPT. Les copier dans `secrets/signer.crt` et `secrets/signer.pem`. La clé doit rester **chiffrée** : sa passphrase n'est jamais stockée. Chaque opérateur la saisit dans la console, qui garde la clé ouverte pour sa seule session pendant `WWC_SIGNER_UNLOCK_MINUTES` (30 par défaut). Quand plus aucune session ne l'utilise, le processus de signature s'arrête et la clé déchiffrée disparaît de la mémoire.
+Par défaut, **aucune clé n'est stockée sur le serveur**. Pour déverrouiller la signature, chaque opérateur choisit, sur son appareil, sa clé privée **chiffrée** (`.pem`) et son certificat (`.crt`), puis saisit la passphrase. Le serveur garde la clé en mémoire, dans un processus de signature propre à la session, pendant `WWC_SIGNER_UNLOCK_MINUTES` (30 par défaut). Rien n'est écrit sur disque et la passphrase n'est pas conservée. À l'expiration ou au verrouillage, le processus s'arrête et la clé disparaît. Une clé non chiffrée est refusée.
+
+Chaque opérateur peut ainsi utiliser sa propre clé. Les agents n'acceptent toutefois que les signatures des certificats auxquels ils font confiance : un nouveau certificat doit être déployé sur les agents avant usage. Le journal indique quel certificat a signé chaque action.
+
+Pour garder malgré tout une clé sur le serveur, déverrouillable avec la seule passphrase, voir `docker-compose.override.example.yml`.
 
 ## 3. Authelia
 

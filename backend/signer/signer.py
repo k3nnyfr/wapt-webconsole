@@ -23,6 +23,7 @@ Protocol: one JSON request on stdin, one JSON object per result on stdout, then 
         signed, then checked against the signer certificate. Nothing is uploaded.
 
     {"op": "serve", "certificate": "...", "private_key": "...", "password": "..."}
+    (every op also takes the PEM contents instead of files: "certificate_pem", "private_key_pem")
         -> {"ok": true, "ready": true, "cn": ..., "fingerprint": ...}, then one request per stdin line, until EOF:
            {"id": 1, "op": "sign_actions", "actions": [...]} -> {"id": 1, "results": [<as sign_actions>]}
            {"id": 2, "op": "build_packages", "output_dir": "...", "jobs": [...]} -> {"id": 2, "results": [...]}
@@ -51,19 +52,32 @@ def emit(obj):
     sys.stdout.flush()
 
 
+def signer_bundle(req):
+    """Certificates of the signer: PEM content (``certificate_pem``) or file (``certificate``)."""
+    bundle = SSLCABundle()
+    if req.get("certificate_pem"):
+        bundle.add_certificates_from_pem(pem_data=req["certificate_pem"], trusted=True)
+    else:
+        bundle.add_certificates_from_pem(pem_filename=req["certificate"], trusted=True)
+    return bundle
+
+
 def load_signer(req):
-    """Private key and certificate chain of the signer; the key must match the first certificate."""
+    """Private key and certificate chain of the signer; the key must match the first certificate.
+
+    The key comes as PEM content (``private_key_pem``: brought by the user, kept in memory only) or as a file
+    (``private_key``)."""
     password = req.get("password") or None
-    if password is None and is_pem_key_encrypted(req["private_key"]):
+    pem = req.get("private_key_pem")
+    encrypted = ("ENCRYPTED" in pem) if pem else is_pem_key_encrypted(req["private_key"])
+    if password is None and encrypted:
         # waptcrypto would prompt on a console this process does not have
         raise ValueError("the private key is encrypted: a passphrase is required")
     # None for an unencrypted key: waptcrypto rejects a password, even empty, for such a key
-    key = SSLPrivateKey(req["private_key"], password=password)
-    bundle = SSLCABundle()
-    bundle.add_certificates_from_pem(pem_filename=req["certificate"], trusted=True)
-    chain = bundle.certificates()
+    key = SSLPrivateKey(pem_data=pem, password=password) if pem else SSLPrivateKey(req["private_key"], password=password)
+    chain = signer_bundle(req).certificates()
     if not chain:
-        raise ValueError("no certificate in %s" % req["certificate"])
+        raise ValueError("no certificate given")
     if not chain[0].match_key(key):
         raise ValueError("the private key does not match the certificate %s" % chain[0].cn)
     return key, chain
@@ -105,7 +119,7 @@ def op_serve(req):
             if op == "sign_actions":
                 results = sign_all(key, chain, request.get("actions"))
             elif op == "build_packages":
-                results = build_all(key, chain, req["certificate"], request["output_dir"], request.get("jobs"))
+                results = build_all(key, chain, req, request["output_dir"], request.get("jobs"))
             else:
                 raise ValueError("unsupported op %r" % op)
             emit({"id": request.get("id"), "results": results})
@@ -129,9 +143,8 @@ def op_verify_actions(req):
 KEPT_ATTRIBUTES = set(PackageEntry.required_attributes + PackageEntry.optional_attributes) - {"package_uuid"}
 
 
-def build_all(key, chain, certificate, output_dir, jobs):
-    signers = SSLCABundle()
-    signers.add_certificates_from_pem(pem_filename=certificate, trusted=True)
+def build_all(key, chain, req, output_dir, jobs):
+    signers = signer_bundle(req)
     os.makedirs(output_dir, exist_ok=True)
     results = []
     for job in jobs or []:
@@ -158,7 +171,7 @@ def build_all(key, chain, certificate, output_dir, jobs):
 
 def op_build_packages(req):
     key, chain = load_signer(req)
-    for result in build_all(key, chain, req["certificate"], req["output_dir"], req.get("jobs")):
+    for result in build_all(key, chain, req, req["output_dir"], req.get("jobs")):
         emit(result)
 
 

@@ -29,12 +29,11 @@ services:
       WWC_OIDC_CLIENT_ID: ${WWC_OIDC_CLIENT_ID:-wapt-webconsole}
       WWC_OIDC_CLIENT_SECRET_FILE: /run/secrets/oidc_client_secret
       WWC_SESSION_SECRET_FILE: /run/secrets/session_secret
-      # Certificate and encrypted private key signing the agent actions (passphrase typed in the console)
-      WWC_SIGNER_CERTIFICATE_FILE: /run/secrets/signer_certificate
-      WWC_SIGNER_KEY_FILE: /run/secrets/signer_key
+      # No signing key here: each operator brings their encrypted key and certificate when unlocking
+      # (see docker-compose.override.example.yml to store one on the server instead)
       # The backend is only reachable from the frontend container: trust its X-Forwarded-* headers
       FORWARDED_ALLOW_IPS: "*"
-    secrets: [wapt_password, oidc_client_secret, session_secret, signer_certificate, signer_key]
+    secrets: [wapt_password, oidc_client_secret, session_secret]
     tmpfs: [/tmp]
     volumes:
       - data:/data            # audit journal
@@ -62,10 +61,6 @@ secrets:
     file: ./secrets/oidc_client_secret
   session_secret:
     file: ./secrets/session_secret
-  signer_certificate:
-    file: ./secrets/signer.crt
-  signer_key:
-    file: ./secrets/signer.pem      # encrypted PEM key: useless without its passphrase
 
 volumes:
   data:

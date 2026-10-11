@@ -8,3 +8,15 @@ services:
     extra_hosts:
       - "auth.example.org:10.0.0.10"
       - "wapt.example.org:10.0.0.10"
+    # Optional: a signing key stored on the server, unlocked with its passphrase only. Without it (default), each
+    # operator brings their encrypted key and certificate from their device when unlocking.
+    # environment:
+    #   WWC_SIGNER_CERTIFICATE_FILE: /run/secrets/signer_certificate
+    #   WWC_SIGNER_KEY_FILE: /run/secrets/signer_key
+    # secrets: [wapt_password, oidc_client_secret, session_secret, signer_certificate, signer_key]
+
+# secrets:
+#   signer_certificate:
+#     file: ./secrets/signer.crt
+#   signer_key:
+#     file: ./secrets/signer.pem      # encrypted PEM key: useless without its passphrase
