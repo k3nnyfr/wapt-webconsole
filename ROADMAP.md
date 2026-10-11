@@ -37,10 +37,10 @@ Retours du premier essai sur wapt-console.example.org (2026-10-11) intégrés.
   - matériel : fabricant, modèle, numéro de série, processeur, mémoire ;
   - WAPT : connexion, état, audit, mises à jour en attente, erreurs, dernière remontée, version de l'agent
 - [x] **Tri sur toutes les colonnes**, par défaut les machines connectées en premier, puis par nom ; tri par menu sur mobile
-- [ ] Recherche et filtres (OS, état, connectée, en erreur) ; liste de cartes sur mobile
+- [x] Recherche et filtres (système, état, audit, domaine, agent) en plus des indicateurs ; liste de cartes sur mobile
 - [x] Fiche machine (panneau latéral, plein écran sur mobile, adresse partageable) : résumé, matériel et disques, paquets avec journaux d'installation et d'audit, logiciels, paquet machine
-- [ ] Dépôt privé et groupes en lecture, « machines ayant ce paquet »
-- [ ] Statut en direct par WebSocket
+- [x] Pages Paquets et Groupes en lecture : icônes, déploiement (installé, en attente, en erreur), fiche avec versions, contenu et « machines ayant ce paquet »
+- [x] Statut en direct par WebSocket (backend seul à interroger le serveur WAPT, envoi des seules machines modifiées, reconnexion automatique)
 
 ## v0.4 — Actions à distance
 - [ ] Déverrouillage de la clé (passphrase en mémoire, durée limitée)

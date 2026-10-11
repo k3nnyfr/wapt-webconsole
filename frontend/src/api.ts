@@ -138,3 +138,42 @@ export interface Software {
   system_component: boolean;
   key: string;
 }
+
+export interface DeploymentStats {
+  hosts: number;
+  ok: number;
+  pending: number;
+  errors: number;
+}
+
+/** Repository package or group (``wapt/repository.py: summary``). */
+export interface RepoPackage {
+  package: string;
+  name: string;
+  version: string;
+  section: string;
+  description: string;
+  categories: string[];
+  editor: string;
+  target_os: string;
+  architecture: string;
+  maturity: string;
+  locale: string;
+  depends: string[];
+  conflicts: string[];
+  signer: string;
+  signature_date: string;
+  size: number | null;
+  filename: string;
+  icon: string;
+  homepage: string;
+  licence: string;
+  stats?: DeploymentStats;
+}
+
+export interface PackageDetail {
+  package: RepoPackage;
+  versions: RepoPackage[];
+  hosts: { uuid: string; name: string; version: string; install_status: string; install_date: string;
+           audit_status: string }[];
+}

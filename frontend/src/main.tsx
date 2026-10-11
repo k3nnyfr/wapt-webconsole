@@ -12,6 +12,7 @@ import Layout from "./Layout";
 import { type Me, api, authError, loginUrl, setCsrfToken } from "./api";
 import { ActionMenuProvider } from "./components/ActionMenu";
 import HostsPage from "./hosts/HostsPage";
+import RepoPage from "./repo/RepoPage";
 
 const theme = createTheme({ primaryColor: "blue", defaultRadius: "md" });
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: true } } });
@@ -55,6 +56,8 @@ function App() {
           children: [
             // the host detail is a child route: the hosts page stays mounted (search, filters) while it is open
             { path: "/", element: <HostsPage me={me} />, children: [{ path: "hosts/:uuid", element: null }] },
+            { path: "/packages", element: <RepoPage kind="package" />, children: [{ path: ":name", element: null }] },
+            { path: "/groups", element: <RepoPage kind="group" />, children: [{ path: ":name", element: null }] },
             { path: "*", element: <Navigate to="/" replace /> },
           ],
         },

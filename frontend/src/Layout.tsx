@@ -11,8 +11,8 @@ import { type Me, api } from "./api";
 // Pages to come are shown disabled, with the version that brings them (ROADMAP.md)
 const NAV = [
   { to: "/", label: "Machines", icon: IconDeviceDesktop },
-  { to: "/packages", label: "Paquets", icon: IconPackage, soon: "v0.3" },
-  { to: "/groups", label: "Groupes", icon: IconFolders, soon: "v0.3" },
+  { to: "/packages", label: "Paquets", icon: IconPackage },
+  { to: "/groups", label: "Groupes", icon: IconFolders },
   { to: "/journal", label: "Journal", icon: IconHistory, soon: "v0.4" },
 ];
 

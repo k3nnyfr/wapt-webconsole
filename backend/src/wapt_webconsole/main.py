@@ -5,14 +5,16 @@ from __future__ import annotations
 import logging
 from contextlib import asynccontextmanager
 from typing import Annotated
+from urllib.parse import urlsplit
 
-from fastapi import Depends, FastAPI, HTTPException, Path, Request
+from fastapi import Depends, FastAPI, HTTPException, Path, Request, Response, WebSocket, WebSocketDisconnect
 from starlette.middleware.sessions import SessionMiddleware
 
 from . import __version__, auth
 from .auth import User, require
-from .config import Settings
-from .wapt import details
+from .config import Settings, role_at_least
+from .live import LiveHub
+from .wapt import details, repository
 from .wapt.client import WaptClient, WaptError
 from .wapt.hosts import Inventory
 
@@ -20,6 +22,9 @@ log = logging.getLogger(__name__)
 
 # WAPT host uuids: SMBIOS uuids, or generated ones; letters, digits and dashes only
 HostUuid = Annotated[str, Path(pattern=r"^[A-Za-z0-9-]{1,64}$")]
+PackageName = Annotated[str, Path(pattern=r"^[A-Za-z0-9][A-Za-z0-9._+~-]{0,199}$")]
+IconHash = Annotated[str, Path(pattern=r"^[0-9a-f]{64}$")]
+ICON_CACHE_SIZE = 500
 
 
 def create_app(settings: Settings | None = None, wapt: WaptClient | None = None) -> FastAPI:
@@ -30,9 +35,12 @@ def create_app(settings: Settings | None = None, wapt: WaptClient | None = None)
         app.state.wapt = wapt or WaptClient(settings.wapt_url, settings.wapt_user, settings.wapt_password,
                                             verify=settings.wapt_verify_tls, timeout=settings.wapt_timeout)
         app.state.inventory = Inventory(app.state.wapt)
+        app.state.live = LiveHub(app.state.inventory, settings.live_interval, settings.session_max_age)
+        app.state.icons = {}
         try:
             yield
         finally:
+            await app.state.live.close()
             await app.state.wapt.close()
 
     app = FastAPI(title="wapt-webconsole", version=__version__, lifespan=lifespan,
@@ -92,6 +100,62 @@ def create_app(settings: Settings | None = None, wapt: WaptClient | None = None)
     async def host_softwares(request: Request, uuid: HostUuid, user: Annotated[User, Depends(require("viewer"))]):
         """Software installed on the host, inside or outside WAPT."""
         return await wapt_call(details.host_softwares(request.app.state.wapt, uuid))
+
+    @app.get("/api/packages", tags=["repository"])
+    async def packages(request: Request, user: Annotated[User, Depends(require("viewer"))], kind: str = "package"):
+        """Newest version of each repository package (``kind=package``) or group (``kind=group``)."""
+        if kind not in repository.SECTIONS:
+            raise HTTPException(422, "kind must be package or group")
+        return await wapt_call(repository.packages(request.app.state.wapt, kind))
+
+    @app.get("/api/packages/{name}", tags=["repository"])
+    async def package(request: Request, name: PackageName, user: Annotated[User, Depends(require("viewer"))]):
+        """Versions of a package or group and the hosts where it is installed."""
+        detail = await wapt_call(repository.package_detail(request.app.state.wapt, name))
+        if detail is None:
+            raise HTTPException(404, "unknown package")
+        return detail
+
+    @app.get("/api/icons/{sha256}.png", tags=["repository"])
+    async def icon(request: Request, sha256: IconHash, user: Annotated[User, Depends(require("viewer"))]):
+        """Package icon from the repository, by content hash: cacheable forever."""
+        cache: dict[str, bytes] = request.app.state.icons
+        if sha256 not in cache:
+            try:
+                resp = await request.app.state.wapt.fetch(f"{settings.repo_url}/icons/{sha256}.png")
+            except Exception as e:
+                raise HTTPException(502, "repository unreachable") from e
+            if resp.status_code != 200 or not resp.content.startswith(b"\x89PNG"):
+                raise HTTPException(404, "no icon")
+            if len(cache) >= ICON_CACHE_SIZE:
+                cache.pop(next(iter(cache)))
+            cache[sha256] = resp.content
+        return Response(cache[sha256], media_type="image/png",
+                        headers={"Cache-Control": "private, max-age=31536000, immutable"})
+
+    @app.websocket("/api/ws")
+    async def live(ws: WebSocket):
+        """Live host status: a snapshot, then the changed hosts (see ``live.LiveHub``)."""
+        public = urlsplit(settings.public_url)
+        origin = urlsplit(ws.headers.get("origin", ""))
+        if (origin.scheme, origin.netloc) != (public.scheme, public.netloc):   # cross-site WebSocket hijacking
+            await ws.close(code=4403)
+            return
+        data = ws.session.get("user")
+        user = User(**data) if data else None
+        if user is None or not role_at_least(user.role, "viewer"):
+            await ws.close(code=4401)
+            return
+        await ws.accept()
+        hub: LiveHub = ws.app.state.live
+        try:
+            await hub.join(ws, user.login_at)
+            while True:
+                await ws.receive_text()          # nothing expected from the browser; keeps the connection open
+        except (WebSocketDisconnect, WaptError):
+            pass
+        finally:
+            hub.leave(ws)
 
     return app
 

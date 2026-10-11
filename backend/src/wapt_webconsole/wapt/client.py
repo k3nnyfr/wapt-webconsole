@@ -74,6 +74,10 @@ class WaptClient:
             raise WaptError(f"{path}: {payload.get('msg') or f'HTTP {resp.status_code}'}", resp.status_code)
         return payload.get("result")
 
+    async def fetch(self, url: str) -> httpx.Response:
+        """Unauthenticated GET of a public repository file (icons), with the client TLS settings."""
+        return await self._http.get(url)
+
     # --- read-only API ---------------------------------------------------------------------------------------
 
     async def ping(self) -> dict:

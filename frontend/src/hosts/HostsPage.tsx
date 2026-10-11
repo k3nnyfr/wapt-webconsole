@@ -4,6 +4,7 @@
 import {
   ActionIcon,
   Alert,
+  Badge,
   Card,
   Group,
   Loader,
@@ -41,7 +42,9 @@ import { useMatch, useNavigate } from "react-router";
 
 import { type Host, type HostsAnswer, type Me, api } from "../api";
 import { type Action, useActionMenu } from "../components/ActionMenu";
+import { useLiveHosts } from "../live";
 import ColumnsPicker from "./ColumnsPicker";
+import Filters, { ActiveFilters, type FilterValues, matchesFilters } from "./Filters";
 import HostDetail from "./HostDetail";
 import {
   COLUMNS,
@@ -124,6 +127,8 @@ export default function HostsPage({ me }: { me: Me }) {
   const actions = (h: Host) => hostActions(h, open);
   const [search, setSearch] = useState("");
   const [quick, setQuick] = useState<QuickFilter>("all");
+  const [filters, setFilters] = useState<FilterValues>({});
+  const live = useLiveHosts();
   const prefix = `wwc.${me.user.username}.hosts`;
   const [columns, setColumns] = usePersistentState<string[]>(`${prefix}.columns`, DEFAULT_COLUMNS,
     (v) => Array.isArray(v) && v.length > 0 && v.every((id) => id in COLUMN_BY_ID));
@@ -133,7 +138,7 @@ export default function HostsPage({ me }: { me: Me }) {
   const { data, error, isLoading, isFetching } = useQuery({
     queryKey: ["hosts"],
     queryFn: () => api.get<HostsAnswer>("/api/hosts"),
-    refetchInterval: 30_000,
+    refetchInterval: live === "live" ? false : 30_000,     // polling only while the live channel is down
   });
   const refresh = async () => {
     const fresh = await api.get<HostsAnswer>("/api/hosts?refresh=true");
@@ -147,8 +152,8 @@ export default function HostsPage({ me }: { me: Me }) {
     const q = search.trim().toLowerCase();
     const matches = (h: Host) =>
       !q || SEARCHED.some((k) => String(h[k] ?? "").toLowerCase().includes(q)) || h.ips.some((ip) => ip.includes(q));
-    return sortHosts(all.filter((h) => test(h) && matches(h)), sort);
-  }, [all, quick, search, sort]);
+    return sortHosts(all.filter((h) => test(h) && matchesFilters(h, filters) && matches(h)), sort);
+  }, [all, quick, filters, search, sort]);
 
   const clickHeader = (id: string) =>
     setSort(sort.column === id ? { column: id, desc: !sort.desc }
@@ -168,9 +173,15 @@ export default function HostsPage({ me }: { me: Me }) {
           <Text size="xs" c="dimmed" truncate>{data?.server ?? me.wapt_url}</Text>
         </Stack>
         <Group gap="xs" wrap="nowrap">
-          {data && <Text size="xs" c="dimmed" visibleFrom="sm">
-            lu <RelativeDate iso={new Date(data.read_at * 1000).toISOString()} />
-          </Text>}
+          {live === "live" ? (
+            <Tooltip label="État des machines mis à jour automatiquement">
+              <Badge variant="dot" color="green" size="lg" tt="none">En direct</Badge>
+            </Tooltip>
+          ) : data && (
+            <Text size="xs" c="dimmed" visibleFrom="sm">
+              lu <RelativeDate iso={new Date(data.read_at * 1000).toISOString()} />
+            </Text>
+          )}
           <Tooltip label="Relire l'inventaire sur le serveur WAPT">
             <ActionIcon variant="default" size="lg" onClick={refresh} loading={isFetching} aria-label="Actualiser">
               <IconRefresh size={18} />
@@ -199,6 +210,7 @@ export default function HostsPage({ me }: { me: Me }) {
                         aria-label="Inverser le tri">
               {sort.desc ? <IconSortDescending size={20} /> : <IconSortAscending size={20} />}
             </ActionIcon>
+            <Filters hosts={all} filters={filters} onChange={setFilters} />
           </Group>
         </Stack>
       ) : (
@@ -206,9 +218,11 @@ export default function HostsPage({ me }: { me: Me }) {
           <TextInput placeholder="Rechercher : nom, utilisateur, IP, OS, n° de série…" style={{ flex: 1 }}
                      leftSection={<IconSearch size={16} />} value={search}
                      onChange={(e) => setSearch(e.currentTarget.value)} />
+          <Filters hosts={all} filters={filters} onChange={setFilters} />
           <ColumnsPicker visible={columns} onChange={setColumns} />
         </Group>
       )}
+      <ActiveFilters filters={filters} onChange={setFilters} />
 
       {isLoading && <Loader />}
       {error && <Alert color="red" title="Inventaire indisponible">{(error as Error).message}</Alert>}

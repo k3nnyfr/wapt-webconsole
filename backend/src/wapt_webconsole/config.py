@@ -33,6 +33,10 @@ class Settings(BaseSettings):
     wapt_password_file: Path | None = None
     wapt_verify_tls: bool = True
     wapt_timeout: float = 60.0
+    # Package repository (icons); default: <wapt_url>/wapt
+    wapt_repo_url: str = ""
+    # Seconds between two inventory reads while browsers follow the live status
+    live_interval: float = 10.0
 
     # OpenID Connect (Authelia or any provider)
     oidc_issuer: str = ""
@@ -61,6 +65,10 @@ class Settings(BaseSettings):
         if len(secret) < 32:
             raise ValueError("the session secret must be at least 32 characters (WWC_SESSION_SECRET_FILE)")
         return secret
+
+    @property
+    def repo_url(self) -> str:
+        return (self.wapt_repo_url or self.wapt_url.rstrip("/") + "/wapt").rstrip("/")
 
     @property
     def https(self) -> bool:
