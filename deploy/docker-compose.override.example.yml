@@ -1,0 +1,10 @@
+# Copy to docker-compose.override.yml (merged automatically by docker compose, not versioned) when the backend
+# cannot reach the public addresses of the WAPT server or of the OIDC provider from inside the network:
+# a reverse proxy whose public IP is not reachable from the LAN (no NAT hairpin), for instance.
+# The names stay the public ones (TLS certificates remain valid); only their address is replaced by the
+# internal address of the reverse proxy.
+services:
+  backend:
+    extra_hosts:
+      - "auth.example.org:10.0.0.10"
+      - "wapt.example.org:10.0.0.10"

@@ -215,7 +215,7 @@ Le client TypeScript est généré depuis l'OpenAPI de FastAPI (`openapi-typescr
 - [x] Prototype : construction et signature d'un paquet machine modifié, sans envoi
 - [x] Prototype : action réelle (`trigger_host_update`) exécutée par l'agent de `pc-01`, résultat suivi par `host_tasks_status`
 - [x] Vérifier le format des paquets machine stockés : reconstruction identique à l'original, sauf version et signature
-- [ ] Déclarer le client OIDC dans Authelia, créer les groupes de rôles (configuration prête : [docs/deploy.md](docs/deploy.md))
+- [x] Déclarer le client OIDC dans Authelia, groupe `wapt-admins` pour alex ([docs/deploy.md](docs/deploy.md))
 
 ### v0.2 — Socle
 - [x] Squelettes backend (FastAPI) et frontend (Vite, React, Mantine), CI Gitea (ruff, pytest, typecheck, build)
@@ -226,7 +226,7 @@ Le client TypeScript est généré depuis l'OpenAPI de FastAPI (`openapi-typescr
 - [x] Client WAPT (compte admin, reconnexion sur 401), testé contre wapt.example.org
 - [ ] Lecture des index `Packages`, comparaison de versions WAPT
 - [x] Images Docker durcies et docker-compose, testés en local (podman)
-- [ ] Déploiement sur docker.example.org derrière Authelia
+- [x] Déploiement sur https://wapt-console.example.org (docker.example.org, Authelia OIDC, vhost et certificat sur proxy.example.org)
 
 ### v0.3 — Inventaire en lecture seule *(premier usage réel)*
 - [ ] Grille des machines : recherche, filtres (OS, statut, connectée, en erreur), colonnes configurables ; liste de cartes sur mobile

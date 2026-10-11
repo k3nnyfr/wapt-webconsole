@@ -64,7 +64,11 @@ Un utilisateur sans aucun de ces groupes est refusé après la connexion. Les no
   - la montée en WebSocket (`Upgrade`, `Connection`), utilisée à partir de la v0.3 ;
   - des corps de requête de plusieurs centaines de Mo (`client_max_body_size`), pour l'upload de paquets en v0.6.
 
-## 5. Démarrage
+## 5. Réseau sans « hairpin NAT »
+
+Si l'IP publique du reverse proxy n'est pas joignable depuis le réseau interne, le backend ne peut pas atteindre le serveur WAPT ni le fournisseur OIDC par leur nom public (`Connection refused` dans les journaux, erreur 500 sur `/auth/login`). Copier `docker-compose.override.example.yml` en `docker-compose.override.yml` et y faire pointer ces noms vers l'adresse interne du reverse proxy. Les URL restent publiques et les certificats valides.
+
+## 6. Démarrage
 
 ```bash
 docker compose up -d --build

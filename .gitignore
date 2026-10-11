@@ -24,3 +24,6 @@ secrets/
 # Built or downloaded WAPT packages
 *.wapt
 out/
+
+# Site-specific compose overrides
+deploy/docker-compose.override.yml
