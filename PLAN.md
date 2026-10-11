@@ -67,12 +67,12 @@ La création de paquets logiciels à partir d'un installeur. Elle demanderait l'
 ### Backend : Python + FastAPI
 
 - **Briques propres au projet**, écrites pour une application web et non pour une CLI :
-  - client API WAPT asynchrone (`httpx`) : login, TOTP, certificat client, reconnexion ;
+  - client API WAPT asynchrone (`httpx2`, successeur maintenu de `httpx`) : login, TOTP, certificat client, reconnexion ;
   - lecture des index `Packages` (dépôt et store) et comparaison de versions WAPT ;
   - modèles Pydantic des machines, paquets et groupes, qui alimentent aussi l'OpenAPI ;
   - construction des paquets machine et groupe, actions signées, import du store.
 - **Signature dans le conteneur** : l'image backend installe l'agent Linux WAPT (`tis-waptagent`, dépôt apt Tranquil IT, Debian 12) **sans l'enregistrer**, uniquement pour son `waptpython`. Un script propre au projet, `signer.py`, est exécuté par `waptpython`. Il utilise l'implémentation de référence (`waptcrypto.SSLPrivateKey.sign_claim`, `waptpackage.PackageEntry.sign_package`, `build_management_package`) au lieu de réécrire la signature, puisque c'est elle que les agents vérifient. Protocole : un job JSON en entrée, une ligne JSON par résultat en sortie. Un appel coûte environ 300 ms (démarrage et déchiffrement de la clé) : le backend garde un **processus `signer.py` persistant** tant que la passphrase est déverrouillée. Validé par le prototype ([docs/prototype-signature.md](docs/prototype-signature.md)). Seul point à vérifier : la licence de redistribution de l'image, qui pourrait limiter sa publication sur un registre public.
-- **Client WAPT longue durée** : une session `httpx.AsyncClient` par backend, connexion automatique et reconnexion sur 401, requêtes parallèles bornées.
+- **Client WAPT longue durée** : une session `httpx2.AsyncClient` par backend, connexion automatique et reconnexion sur 401, requêtes parallèles bornées.
 - **Cache et rafraîchissement** : le serveur WAPT n'a pas de flux d'événements pour une console (son socket.io sert aux agents). Le backend fait donc du **polling** :
   - `hosts` (connexion, statut, dernière remontée) toutes les 15 à 30 s ;
   - `host_tasks_status` sur les machines où une action est en cours.
@@ -124,7 +124,7 @@ Cette console peut **pousser du code sur tout le parc** : sa compromission équi
 ### Accès à l'interface (utilisateurs)
 
 - **Authelia comme fournisseur OpenID Connect**, avec un client `wapt-webconsole` déclaré dans `identity_providers.oidc.clients` (flux *authorization code* + PKCE, scopes `openid profile email groups`, politique `two_factor`).
-- **OIDC natif dans le backend** (Authlib), en mode *Backend-for-Frontend* : le navigateur ne voit jamais de jeton, seulement un cookie de session `HttpOnly`, `Secure`, `SameSite=Strict`, avec un en-tête anti-CSRF sur les requêtes qui modifient l'état.
+- **OIDC natif dans le backend** (Authlib), en mode *Backend-for-Frontend* : le navigateur ne voit jamais de jeton, seulement un cookie de session `HttpOnly`, `Secure`, `SameSite=Lax`, avec un en-tête anti-CSRF sur les requêtes qui modifient l'état. `Lax` et non `Strict` : le retour d'Authelia vers `/auth/callback` vient d'un autre site, et un cookie `Strict` y serait absent.
 - **Rôles** déduits du claim `groups` d'Authelia (groupes `wapt-viewers`, `wapt-operators`, `wapt-admins`, noms configurables) :
   - `viewer` : lecture seule ;
   - `operator` : actions à distance (update, upgrade, audit, Wake-on-LAN) ;
@@ -174,7 +174,7 @@ Cette console peut **pousser du code sur tout le parc** : sa compromission équi
 ```
 wapt-webconsole/
 ├── backend/
-│   ├── pyproject.toml          # FastAPI, Authlib, httpx, Pydantic, pytest, ruff
+│   ├── pyproject.toml          # FastAPI, Authlib, httpx2, Pydantic, pytest, ruff
 │   ├── Dockerfile              # Debian 12 + tis-waptagent (waptpython) + uv
 │   └── src/wapt_webconsole/
 │       ├── main.py             # application, routes, WebSocket
@@ -208,21 +208,25 @@ Le client TypeScript est généré depuis l'OpenAPI de FastAPI (`openapi-typescr
 ## 6. Feuille de route
 
 ### v0.1 — Phase 0 : cadrage et prototypes (prototypes validés le 2026-10-11)
-- [ ] Créer le dépôt `wapt-webconsole`, **privé** sur git.k3nny.fr (miroir GitHub à l'annonce)
+- [x] Créer le dépôt `wapt-webconsole`, **privé** sur git.k3nny.fr (miroir GitHub à l'annonce)
 - [x] Recenser les endpoints de la console Discovery à partir des sources de WAPT 2.7 ([docs/wapt-api.md](docs/wapt-api.md))
 - [ ] Confirmer sur le serveur réel les points restés ouverts (droits, audit, redémarrage, statut des tâches)
 - [x] Prototype : image Docker avec `waptpython`, requête signée acceptée par un agent réel via proxy.example.org ([docs/prototype-signature.md](docs/prototype-signature.md))
 - [x] Prototype : construction et signature d'un paquet machine modifié, sans envoi
 - [x] Prototype : action réelle (`trigger_host_update`) exécutée par l'agent de `pc-01`, résultat suivi par `host_tasks_status`
 - [x] Vérifier le format des paquets machine stockés : reconstruction identique à l'original, sauf version et signature
-- [ ] Déclarer le client OIDC dans Authelia, créer les groupes de rôles
+- [ ] Déclarer le client OIDC dans Authelia, créer les groupes de rôles (configuration prête : [docs/deploy.md](docs/deploy.md))
 
 ### v0.2 — Socle
-- [ ] Squelettes backend (FastAPI) et frontend (Vite, React, Mantine), CI (ruff, pytest, eslint, typecheck, build des images)
-- [ ] Coque d'interface responsive (barre latérale sur ordinateur, barre en bas sur mobile), manifeste PWA
-- [ ] Connexion OIDC via Authelia, session, rôles, compte local de secours
-- [ ] Client WAPT (compte de service, reconnexion), lecture des index `Packages`, comparaison de versions, tests unitaires
-- [ ] docker-compose fonctionnel en local puis sur docker.example.org
+- [x] Squelettes backend (FastAPI) et frontend (Vite, React, Mantine), CI Gitea (ruff, pytest, typecheck, build)
+- [x] Coque d'interface responsive (barre latérale sur ordinateur, barre en bas sur mobile), manifeste PWA
+- [x] Menu d'actions unique : clic droit, appui long, bouton `⋮`, feuille d'actions sur mobile
+- [x] Connexion OIDC (code + PKCE), session signée, rôles par groupes, CSRF, durée de vie absolue
+- [ ] Compte local de secours (mot de passe et TOTP)
+- [x] Client WAPT (compte admin, reconnexion sur 401), testé contre wapt.example.org
+- [ ] Lecture des index `Packages`, comparaison de versions WAPT
+- [x] Images Docker durcies et docker-compose, testés en local (podman)
+- [ ] Déploiement sur docker.example.org derrière Authelia
 
 ### v0.3 — Inventaire en lecture seule *(premier usage réel)*
 - [ ] Grille des machines : recherche, filtres (OS, statut, connectée, en erreur), colonnes configurables ; liste de cartes sur mobile

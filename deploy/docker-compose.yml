@@ -1,0 +1,58 @@
+# wapt-webconsole: frontend (nginx, SPA + proxy) and backend (FastAPI + waptpython).
+# Only the frontend is published, on the loopback: the nginx of the host proxies the console's hostname to it.
+#
+#   cp .env.example .env            # then fill it in
+#   ./init-secrets.sh               # secrets/ (chmod 600), see docs/deploy.md
+#   docker compose up -d --build
+
+name: wapt-webconsole
+
+x-hardening: &hardening
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  restart: unless-stopped
+
+services:
+  backend:
+    <<: *hardening
+    build: ../backend
+    image: wapt-webconsole-backend:${WWC_VERSION:-dev}
+    env_file: .env          # optional settings (WWC_ROLE_GROUPS...)
+    environment:
+      WWC_PUBLIC_URL: ${WWC_PUBLIC_URL:?set WWC_PUBLIC_URL in .env}
+      WWC_WAPT_URL: ${WWC_WAPT_URL:?set WWC_WAPT_URL in .env}
+      WWC_WAPT_USER: ${WWC_WAPT_USER:-admin}
+      WWC_WAPT_PASSWORD_FILE: /run/secrets/wapt_password
+      WWC_OIDC_ISSUER: ${WWC_OIDC_ISSUER:?set WWC_OIDC_ISSUER in .env}
+      WWC_OIDC_CLIENT_ID: ${WWC_OIDC_CLIENT_ID:-wapt-webconsole}
+      WWC_OIDC_CLIENT_SECRET_FILE: /run/secrets/oidc_client_secret
+      WWC_SESSION_SECRET_FILE: /run/secrets/session_secret
+      # The backend is only reachable from the frontend container: trust its X-Forwarded-* headers
+      FORWARDED_ALLOW_IPS: "*"
+    secrets: [wapt_password, oidc_client_secret, session_secret]
+    tmpfs: [/tmp]
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  frontend:
+    <<: *hardening
+    build: ../frontend
+    image: wapt-webconsole-frontend:${WWC_VERSION:-dev}
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${WWC_PORT:-8085}:8080"
+    tmpfs: [/tmp]
+
+secrets:
+  wapt_password:
+    file: ./secrets/wapt_password
+  oidc_client_secret:
+    file: ./secrets/oidc_client_secret
+  session_secret:
+    file: ./secrets/session_secret

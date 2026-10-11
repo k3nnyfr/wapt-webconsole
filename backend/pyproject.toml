@@ -1,0 +1,37 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "wapt-webconsole"
+version = "0.1.0"
+description = "Web console for WAPT Discovery servers"
+license = "GPL-3.0-or-later"
+requires-python = ">=3.12"
+authors = [{ name = "Alex" }]
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "httpx2>=2.13",
+    "pydantic-settings>=2.6",
+    "authlib>=1.3",
+    "itsdangerous>=2.2",
+]
+
+[dependency-groups]
+dev = ["pytest>=8", "pytest-asyncio>=0.24", "ruff>=0.8"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/wapt_webconsole"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+extend-exclude = ["signer/signer.py"]   # runs under waptpython (Python 3.11, WAPT modules)
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"

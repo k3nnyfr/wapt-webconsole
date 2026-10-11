@@ -1,0 +1,24 @@
+# To merge into the Authelia configuration (identity_providers.oidc.clients), Authelia 4.39 or later.
+# Replace the hostname and the client_secret hash (see deploy/init-secrets.sh).
+identity_providers:
+  oidc:
+    clients:
+      - client_id: 'wapt-webconsole'
+        client_name: 'WAPT Console'
+        client_secret: '$pbkdf2-sha512$310000$REPLACE_WITH_THE_HASH_OF_secrets/oidc_client_secret'
+        public: false
+        authorization_policy: 'two_factor'
+        consent_mode: 'implicit'
+        require_pkce: true
+        pkce_challenge_method: 'S256'
+        redirect_uris:
+          - 'https://wapt-console.example.org/auth/callback'
+        scopes: ['openid', 'profile', 'email', 'groups']
+        response_types: ['code']
+        grant_types: ['authorization_code']
+        token_endpoint_auth_method: 'client_secret_basic'
+
+# Users get a role through these groups (users file or LDAP), the highest one wins:
+#   wapt-viewers    read-only
+#   wapt-operators  remote actions (update, upgrade, Wake-on-LAN...)
+#   wapt-admins     assignments, groups, repository, store import
