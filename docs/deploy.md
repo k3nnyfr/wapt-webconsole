@@ -30,7 +30,18 @@ cp .env.example .env          # WWC_PUBLIC_URL, WWC_WAPT_URL, WWC_OIDC_ISSUER
 
 ## 3. Authelia
 
-Ajouter le client de `deploy/authelia-client.yml` à `identity_providers.oidc.clients` :
+Si Authelia tourne en conteneur sur le même hôte avec une configuration en fichiers, `deploy/authelia-register.sh` fait tout, en root :
+- sauvegarde de la configuration et du fichier des utilisateurs ;
+- secret client généré par Authelia et écrit dans `secrets/oidc_client_secret`, sans jamais l'afficher ;
+- ajout du client et du groupe de l'utilisateur ;
+- validation de la configuration (les sauvegardes sont restaurées si elle est refusée), puis redémarrage d'Authelia.
+
+```bash
+sudo deploy/authelia-register.sh --config /chemin/configuration.yml --redirect https://<nom>/auth/callback \
+  --secret-out deploy/secrets/oidc_client_secret --users /chemin/users_database.yml --user <login> --group wapt-admins
+```
+
+Sinon, ajouter à la main le client de `deploy/authelia-client.yml` à `identity_providers.oidc.clients` :
 - `redirect_uris` : `https://<nom de la console>/auth/callback` ;
 - `client_secret` : le hash obtenu à l'étape 2.
 
@@ -46,7 +57,8 @@ Un utilisateur sans aucun de ces groupes est refusé après la connexion. Les no
 
 ## 4. Reverse proxies
 
-- **nginx de docker.example.org** : reprendre `deploy/nginx-host.conf` (nom d'hôte, port `WWC_PORT`).
+- **Reverse proxy sur le même hôte** : reprendre `deploy/nginx-host.conf` (nom d'hôte, port `WWC_PORT`), le frontend restant sur `127.0.0.1`.
+- **Reverse proxy sur une autre machine**, comme proxy.example.org qui joint directement les ports de docker.example.org : publier le frontend sur l'adresse du réseau interne (`WWC_BIND=10.0.0.40`, par exemple) et ne pas l'exposer ailleurs.
 - **proxy.example.org** doit transmettre :
   - `X-Forwarded-For` et `X-Forwarded-Proto: https`, pour que le backend pose des cookies `Secure`, construise la bonne URL de retour OIDC et journalise la vraie IP ;
   - la montée en WebSocket (`Upgrade`, `Connection`), utilisée à partir de la v0.3 ;

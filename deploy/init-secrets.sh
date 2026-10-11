@@ -17,11 +17,17 @@ if [ ! -s secrets/wapt_password ]; then
 fi
 
 new_client=0
+# Created by authelia-register.sh when Authelia runs on this host
 if [ ! -s secrets/oidc_client_secret ]; then
     head -c 48 /dev/urandom | base64 | tr -d '\n=/+' > secrets/oidc_client_secret
     new_client=1
 fi
 
+# The backend runs as uid 10001 and reads its secrets through bind mounts
+if [ "$(id -u)" = 0 ]; then
+    chown 10001:10001 secrets/session_secret secrets/wapt_password secrets/oidc_client_secret 2>/dev/null || true
+    chmod 400 secrets/*
+fi
 ls -l secrets
 if [ "$new_client" = 1 ]; then
     echo

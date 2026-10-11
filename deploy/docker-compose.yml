@@ -1,5 +1,6 @@
 # wapt-webconsole: frontend (nginx, SPA + proxy) and backend (FastAPI + waptpython).
-# Only the frontend is published, on the loopback: the nginx of the host proxies the console's hostname to it.
+# Only the frontend is published: on the loopback by default (a reverse proxy on the same host), or on the
+# address reached by a remote reverse proxy (WWC_BIND).
 #
 #   cp .env.example .env            # then fill it in
 #   ./init-secrets.sh               # secrets/ (chmod 600), see docs/deploy.md
@@ -46,7 +47,7 @@ services:
       backend:
         condition: service_healthy
     ports:
-      - "127.0.0.1:${WWC_PORT:-8085}:8080"
+      - "${WWC_BIND:-127.0.0.1}:${WWC_PORT:-8085}:8080"
     tmpfs: [/tmp]
 
 secrets:
