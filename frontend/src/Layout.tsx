@@ -1,16 +1,19 @@
 // Application shell: side navigation on a computer or tablet, bottom navigation bar on a phone.
 
 import { ActionIcon, AppShell, Group, NavLink, Stack, Text, UnstyledButton } from "@mantine/core";
-import { IconDeviceDesktop, IconLayoutDashboard, IconLogout } from "@tabler/icons-react";
+import { IconDeviceDesktop, IconFolders, IconHistory, IconLogout, IconPackage } from "@tabler/icons-react";
 import { useMediaQuery } from "@mantine/hooks";
 import type { ReactNode } from "react";
 import { NavLink as RouterLink, Outlet, useLocation } from "react-router";
 
 import { type Me, api } from "./api";
 
+// Pages to come are shown disabled, with the version that brings them (ROADMAP.md)
 const NAV = [
-  { to: "/", label: "Tableau de bord", icon: IconLayoutDashboard },
-  { to: "/hosts", label: "Machines", icon: IconDeviceDesktop },
+  { to: "/", label: "Machines", icon: IconDeviceDesktop },
+  { to: "/packages", label: "Paquets", icon: IconPackage, soon: "v0.3" },
+  { to: "/groups", label: "Groupes", icon: IconFolders, soon: "v0.3" },
+  { to: "/journal", label: "Journal", icon: IconHistory, soon: "v0.4" },
 ];
 
 async function logout() {
@@ -46,9 +49,9 @@ export default function Layout({ me }: { me: Me }) {
       </AppShell.Header>
 
       <AppShell.Navbar p="xs">
-        {NAV.map(({ to, label, icon: Icon }) => (
-          <NavLink key={to} component={RouterLink} to={to} label={label} active={active(to)}
-                   leftSection={<Icon size={18} />} />
+        {NAV.map(({ to, label, icon: Icon, soon }) => (
+          <NavLink key={to} component={RouterLink} to={to} label={label} active={active(to)} disabled={!!soon}
+                   description={soon ? `bientôt (${soon})` : undefined} leftSection={<Icon size={18} />} />
         ))}
       </AppShell.Navbar>
 
@@ -59,8 +62,9 @@ export default function Layout({ me }: { me: Me }) {
       {phone && (
         <AppShell.Footer style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
           <Group h="100%" grow gap={0}>
-            {NAV.map(({ to, label, icon: Icon }) => (
-              <BottomTab key={to} to={to} label={label} active={active(to)} icon={<Icon size={22} />} />
+            {NAV.map(({ to, label, icon: Icon, soon }) => (
+              <BottomTab key={to} to={to} label={label} active={active(to)} disabled={!!soon}
+                         icon={<Icon size={22} />} />
             ))}
           </Group>
         </AppShell.Footer>
@@ -69,10 +73,14 @@ export default function Layout({ me }: { me: Me }) {
   );
 }
 
-function BottomTab({ to, label, active, icon }: { to: string; label: string; active: boolean; icon: ReactNode }) {
+function BottomTab({ to, label, active, disabled, icon }: {
+  to: string; label: string; active: boolean; disabled: boolean; icon: ReactNode;
+}) {
   return (
-    <UnstyledButton component={RouterLink} to={to} h="100%"
-                    c={active ? "blue" : "dimmed"} style={{ display: "flex", justifyContent: "center" }}>
+    <UnstyledButton component={RouterLink} to={to} h="100%" aria-disabled={disabled}
+                    onClick={(e) => disabled && e.preventDefault()}
+                    c={active ? "blue" : "dimmed"}
+                    style={{ display: "flex", justifyContent: "center", opacity: disabled ? 0.4 : 1 }}>
       <Stack gap={2} align="center" justify="center">
         {icon}
         <Text size="xs" fw={active ? 600 : 400}>{label}</Text>

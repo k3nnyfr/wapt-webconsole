@@ -6,13 +6,12 @@ import { Notifications } from "@mantine/notifications";
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { StrictMode, useMemo } from "react";
 import { createRoot } from "react-dom/client";
-import { RouterProvider, createBrowserRouter } from "react-router";
+import { Navigate, RouterProvider, createBrowserRouter } from "react-router";
 
 import Layout from "./Layout";
 import { type Me, api, authError, loginUrl, setCsrfToken } from "./api";
 import { ActionMenuProvider } from "./components/ActionMenu";
-import Home from "./pages/Home";
-import Hosts from "./pages/Hosts";
+import HostsPage from "./hosts/HostsPage";
 
 const theme = createTheme({ primaryColor: "blue", defaultRadius: "md" });
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: true } } });
@@ -54,8 +53,8 @@ function App() {
         {
           element: <Layout me={me} />,
           children: [
-            { path: "/", element: <Home me={me} /> },
-            { path: "/hosts", element: <Hosts /> },
+            { path: "/", element: <HostsPage me={me} /> },
+            { path: "*", element: <Navigate to="/" replace /> },
           ],
         },
       ]),

@@ -4,7 +4,7 @@ Console web pour serveur [WAPT](https://www.wapt.fr) **Discovery** : inventaire 
 
 > Projet en cours de conception, dépôt privé.
 
-- [Plan et feuille de route](PLAN.md)
+- [Plan](PLAN.md) et [feuille de route](ROADMAP.md)
 - [API du serveur WAPT 2.7](docs/wapt-api.md)
 - [Prototype de signature](docs/prototype-signature.md)
 

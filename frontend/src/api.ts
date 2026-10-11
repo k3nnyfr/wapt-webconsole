@@ -54,26 +54,42 @@ export interface Me {
   wapt_url: string;
 }
 
-export interface WaptStatus {
-  url: string;
-  hosts: number;
-  connected: number;
-}
-
+/** Flattened host, as returned by the backend (``wapt/hosts.py: flatten``). */
 export interface Host {
   uuid: string;
-  computer_fqdn?: string;
-  computer_name?: string;
-  description?: string;
-  os_name?: string;
-  os_version?: string;
-  reachable?: string;
-  host_status?: string;
-  last_seen_on?: string;
-  wapt_version?: string;
-  connected_users?: string[] | string;
+  name: string;
+  computer_name: string;
+  description: string;
+  dnsdomain: string;
+  main_ip: string;
+  ips: string[];
+  mac: string;
+  last_user: string;
+  users: string[];
+  os_name: string;
+  os_version: string;
+  os_release: string;
+  os_architecture: string;
+  platform: string;
+  manufacturer: string;
+  model: string;
+  serial: string;
+  cpu: string;
+  memory_gb: number | null;
+  last_boot: string;
+  connected: boolean;
+  status: string;
+  audit_status: string;
+  pending: number;
+  errors: number;
+  last_seen: string;
+  wapt_version: string;
+  reboot_allowed: boolean;
+  shutdown_allowed: boolean;
 }
 
-export function hostName(h: Host): string {
-  return h.computer_fqdn || h.computer_name || h.description || h.uuid;
+export interface HostsAnswer {
+  hosts: Host[];
+  read_at: number;
+  server: string;
 }

@@ -13,11 +13,9 @@ from . import __version__, auth
 from .auth import User, require
 from .config import Settings
 from .wapt.client import WaptClient, WaptError
+from .wapt.hosts import Inventory
 
 log = logging.getLogger(__name__)
-
-HOST_COLUMNS = ["uuid", "computer_fqdn", "computer_name", "description", "os_name", "os_version", "reachable",
-                "host_status", "last_seen_on", "wapt_version", "connected_users"]
 
 
 def create_app(settings: Settings | None = None, wapt: WaptClient | None = None) -> FastAPI:
@@ -27,6 +25,7 @@ def create_app(settings: Settings | None = None, wapt: WaptClient | None = None)
     async def lifespan(app: FastAPI):
         app.state.wapt = wapt or WaptClient(settings.wapt_url, settings.wapt_user, settings.wapt_password,
                                             verify=settings.wapt_verify_tls, timeout=settings.wapt_timeout)
+        app.state.inventory = Inventory(app.state.wapt)
         try:
             yield
         finally:
@@ -58,11 +57,13 @@ def create_app(settings: Settings | None = None, wapt: WaptClient | None = None)
         return {"url": client.url, "hosts": len(hosts), "connected": sum(h.get("reachable") == "OK" for h in hosts)}
 
     @app.get("/api/hosts", tags=["hosts"])
-    async def hosts(request: Request, user: Annotated[User, Depends(require("viewer"))]):
+    async def hosts(request: Request, user: Annotated[User, Depends(require("viewer"))], refresh: bool = False):
+        """Flattened inventory (see ``wapt.hosts.flatten``), cached a few seconds."""
         try:
-            return await request.app.state.wapt.hosts(HOST_COLUMNS)
+            hosts, read_at = await request.app.state.inventory.hosts(refresh=refresh)
         except WaptError as e:
             raise HTTPException(502, f"WAPT server: {e}") from e
+        return {"hosts": hosts, "read_at": read_at, "server": request.app.state.wapt.url}
 
     return app
 
