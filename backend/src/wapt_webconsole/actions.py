@@ -27,6 +27,7 @@ class ActionType:
     packages: bool = False       # requires a list of packages
     description: bool = False    # requires a new computer description
     connected_only: bool = True
+    force: bool = False          # always forced: e.g. the agent skips audits not yet due unless forced
 
 
 ACTIONS: dict[str, ActionType] = {
@@ -34,7 +35,7 @@ ACTIONS: dict[str, ActionType] = {
     "upgrade": ActionType("trigger_host_upgrade", "operator", "Application des mises à jour"),
     "install": ActionType("trigger_install_packages", "operator", "Installation de paquets", packages=True),
     "inventory": ActionType("trigger_host_update_server_status", "operator", "Remontée de l'inventaire"),
-    "audit": ActionType("trigger_host_audit", "operator", "Audit des paquets"),
+    "audit": ActionType("trigger_host_audit", "operator", "Audit des paquets", force=True),
     "cancel": ActionType("trigger_cancel_all_tasks", "operator", "Annulation des tâches"),
     "wol": ActionType("", "operator", "Réveil (Wake-on-LAN)", connected_only=False),
     "remove": ActionType("trigger_remove_packages", "admin", "Désinstallation de paquets", packages=True),
@@ -110,7 +111,7 @@ def plan(request: ActionRequest, kind: ActionType, hosts: list[dict]) -> Plan:
         result.reached.append(target)
         if kind.agent_action:
             action = {"action": kind.agent_action, "uuid": uuid, "notify_server": True, "notify_user": False,
-                      "force": request.force}
+                      "force": request.force or kind.force}
             if kind.packages:
                 action["packages"] = request.packages
             if kind.description:

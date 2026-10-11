@@ -73,6 +73,8 @@ def test_plan_and_roles():
         actions.plan(actions.ActionRequest(action="update", hosts=["U9"]), actions.ACTIONS["update"], HOSTS)
     wol = actions.plan(actions.ActionRequest(action="wol", hosts=["U2"]), actions.ACTIONS["wol"], HOSTS)
     assert [t["uuid"] for t in wol.reached] == ["U2"] and wol.actions == []      # disconnected hosts: the point of WoL
+    audit = actions.plan(actions.ActionRequest(action="audit", hosts=["U1"]), actions.ACTIONS["audit"], HOSTS)
+    assert audit.actions[0]["force"] is True              # agents skip the audits not yet due unless forced
     with pytest.raises(ValueError):
         actions.ActionRequest(action="install", hosts=["U1"], packages=["bad name;"])
     with pytest.raises(ValueError):

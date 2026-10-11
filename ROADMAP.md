@@ -50,7 +50,7 @@ Retours du premier essai sur wapt-console.example.org (2026-10-11) intégrés.
 - [x] Rôles par action : opérateur (update, upgrade, installation, inventaire, audit, annulation, Wake-on-LAN), admin (désinstallation, oubli, description, agent, redémarrage, extinction)
 - [x] Suivi des tâches de l'agent dans la fiche machine (en cours avec progression, en attente, en erreur, terminées, journaux)
 - [x] Journal d'audit (SQLite, volume persistant) : déverrouillages et actions, par utilisateur, IP, cibles, résultat
-- [ ] Vérifier sur un agent Discovery l'audit à distance (`trigger_host_audit`)
+- [ ] Vérifier sur un agent Discovery l'audit à distance (`trigger_host_audit`) : relayé et accepté le 2026-10-11, mais sans effet tant qu'il n'est pas forcé (paquets pas encore à échéance) ; désormais toujours forcé
 
 ## v0.5 — Affectation et groupes
 - [ ] Ajouter ou retirer des paquets et des groupes sur une sélection de machines, avec aperçu avant/après
