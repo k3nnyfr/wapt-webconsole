@@ -10,7 +10,8 @@ U = "1B4E28BA-2FA1-11D2-883F-0016D3CCA427"
 
 HOST_ROW = {
     "uuid": U, "computer_fqdn": "pc-01.example.lan", "reachable": "OK", "gateways": ["10.0.0.1", None],
-    "host_info": {"bios_infos": {"bios_vendor": "LENOVO", "bios_version": "N1WET67W (1.46 )"},
+    "host_info": {"bios_infos": {"bios_vendor": "LENOVO", "bios_version": "N1WET67W (1.46 )",
+                                 "bios_date": "05/25/2022"},
                   "installation_date": "2023-05-02"},
     "host_metrics": {"local_drives": {"C": {"Name": "C:", "Size": 255456624640, "FreeSpace": 45289005056,
                                             "FileSystem": "NTFS", "FreePercent": 17}}},
@@ -43,6 +44,7 @@ async def test_host_detail():
     d = await details.host_detail(FakeWapt(), U)
     assert d["host"]["name"] == "pc-01.example.lan"
     assert d["hardware"]["bios_vendor"] == "LENOVO" and d["hardware"]["gateways"] == ["10.0.0.1"]
+    assert d["hardware"]["bios_date"] == "2022-05-25"                       # SMBIOS MM/DD/YYYY to RFC 3339
     assert d["hardware"]["drives"] == [{"name": "C:", "filesystem": "NTFS", "size_gb": 237.9, "free_gb": 42.2,
                                         "free_percent": 17}]
     assert d["host_package"]["depends"] == ["tsi-a", "grp-base"] and d["host_package"]["conflicts"] == []

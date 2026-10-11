@@ -31,6 +31,7 @@ import { type ReactNode, useMemo, useState } from "react";
 import { type AgentTask, type AgentTasks, ApiError, type HostDetail as Detail, type HostPackage, type Me,
   type Software, api, roleAtLeast } from "../api";
 import { useActionMenu } from "../components/ActionMenu";
+import { rfc3339, rfc3339Date } from "../dates";
 import { type Target, useHostMenu, usePackageMenu } from "../ops/actions";
 import { useSigning } from "../ops/signing";
 import { ConnectedBadge, RelativeDate, StatusBadge } from "./columns";
@@ -65,7 +66,7 @@ function Summary({ d }: { d: Detail }) {
         <Field label="Édition">{h.os_release}</Field>
         <Field label="Version">{h.os_version}</Field>
         <Field label="Architecture">{h.os_architecture}</Field>
-        <Field label="Installé le">{d.hardware.os_installed_on}</Field>
+        <Field label="Installé le">{rfc3339(d.hardware.os_installed_on)}</Field>
         <Field label="Dernier démarrage">{date(h.last_boot)}</Field>
       </Section>
       <Section title="WAPT">
@@ -257,7 +258,7 @@ function Softwares({ uuid }: { uuid: string }) {
             {shown.map((s) => (
               <Table.Tr key={s.key + s.name}>
                 <Table.Td>{s.name}</Table.Td><Table.Td>{s.version}</Table.Td><Table.Td>{s.publisher}</Table.Td>
-                <Table.Td style={{ whiteSpace: "nowrap" }}>{s.install_date.slice(0, 10)}</Table.Td>
+                <Table.Td style={{ whiteSpace: "nowrap" }}>{rfc3339Date(s.install_date)}</Table.Td>
               </Table.Tr>
             ))}
           </Table.Tbody>
@@ -281,7 +282,7 @@ function TaskRow({ t, onClick }: { t: AgentTask; onClick: () => void }) {
           {t.summary && <Text size="xs" c="dimmed" lineClamp={2}>{t.summary}</Text>}
           {t.progress != null && t.runstatus === "RUNNING" && <Progress value={t.progress} size="sm" animated />}
           <Text size="xs" c="dimmed">
-            {[t.created_by && `par ${t.created_by}`, t.finished && `terminée ${new Date(t.finished).toLocaleTimeString("fr-FR")}`]
+            {[t.created_by && `par ${t.created_by}`, t.finished && `terminée ${rfc3339(t.finished)}`]
               .filter(Boolean).join(" · ")}
           </Text>
         </Stack>

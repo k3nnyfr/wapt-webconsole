@@ -4,6 +4,7 @@ import { Badge, Group, Text, Tooltip } from "@mantine/core";
 import type { ReactNode } from "react";
 
 import type { Host } from "../api";
+import { rfc3339 } from "../dates";
 
 export type SortKind = "text" | "number" | "date" | "bool";
 
@@ -44,9 +45,7 @@ export function ConnectedBadge({ connected }: { connected: boolean }) {
   );
 }
 
-const absolute = (iso: string) => new Date(iso).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" });
-
-/** "il y a 5 min", with the exact date in a tooltip. */
+/** "il y a 5 min", with the exact RFC 3339 date in a tooltip. */
 export function RelativeDate({ iso }: { iso: string }) {
   if (!iso) return <Text c="dimmed" span>—</Text>;
   const minutes = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
@@ -56,7 +55,7 @@ export function RelativeDate({ iso }: { iso: string }) {
     : minutes < 48 * 60 ? `il y a ${Math.round(minutes / 60)} h`
     : `il y a ${Math.round(minutes / 1440)} j`;
   return (
-    <Tooltip label={absolute(iso)} openDelay={300}>
+    <Tooltip label={rfc3339(iso)} openDelay={300}>
       <Text span size="sm">{label}</Text>
     </Tooltip>
   );

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from .client import WaptClient
@@ -24,6 +25,13 @@ def _drives(metrics: dict) -> list[dict]:
     return sorted(drives, key=lambda d: d["name"])
 
 
+def smbios_date(value: Any) -> str:
+    """SMBIOS dates are MM/DD/YYYY: returned as an RFC 3339 full-date (YYYY-MM-DD), other values unchanged."""
+    text = clean(value)
+    m = re.fullmatch(r"(\d{2})/(\d{2})/(\d{4})", text)
+    return f"{m.group(3)}-{m.group(1)}-{m.group(2)}" if m else text
+
+
 def hardware(row: dict) -> dict:
     info = row.get("host_info") or {}
     metrics = row.get("host_metrics") or {}
@@ -31,7 +39,7 @@ def hardware(row: dict) -> dict:
     return {
         "bios_vendor": clean(bios.get("bios_vendor")),
         "bios_version": clean(bios.get("bios_version")),
-        "bios_date": clean(bios.get("bios_date")),
+        "bios_date": smbios_date(bios.get("bios_date")),
         "os_installed_on": clean(info.get("installation_date")),
         "drives": _drives(metrics),
         "gateways": [g for g in row.get("gateways") or [] if g],

@@ -8,6 +8,7 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { type JournalEntry, api } from "../api";
+import { rfc3339 } from "../dates";
 
 const LABELS: Record<string, string> = {
   unlock: "Déverrouillage de la clé", lock: "Verrouillage de la clé",
@@ -16,7 +17,7 @@ const LABELS: Record<string, string> = {
   description: "Description", restart_agent: "Redémarrage de l'agent", reboot: "Redémarrage", shutdown: "Extinction",
 };
 
-const when = (at: number) => new Date(at * 1000).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "medium" });
+const when = (at: number) => rfc3339(at);
 
 function Targets({ e }: { e: JournalEntry }) {
   if (!e.targets.length) return null;
