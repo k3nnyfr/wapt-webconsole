@@ -1,14 +1,16 @@
 // Package or group detail: description, content, versions in the repository, hosts where it is deployed.
 
-import { Alert, Anchor, Badge, Card, Drawer, Group, Loader, ScrollArea, Stack, Table, Text, Title,
+import { Alert, Anchor, Badge, Button, Card, Drawer, Group, Loader, ScrollArea, Stack, Table, Text, Title,
   UnstyledButton } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
 import { useQuery } from "@tanstack/react-query";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { useNavigate } from "react-router";
 
-import { type PackageDetail as Detail, api } from "../api";
+import { type PackageDetail as Detail, type Me, api, roleAtLeast } from "../api";
 import { RelativeDate, StatusBadge } from "../hosts/columns";
+import { useAssign } from "../ops/assign";
+import { GroupDelete, GroupEditor } from "../ops/groups";
 import { PackageIcon, formatSize } from "./common";
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
@@ -21,10 +23,14 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-export default function PackageDetail({ name, base, onClose }: {
-  name: string | undefined; base: "/packages" | "/groups"; onClose: () => void;
+export default function PackageDetail({ name, base, me, onClose }: {
+  name: string | undefined; base: "/packages" | "/groups"; me: Me; onClose: () => void;
 }) {
   const phone = useMediaQuery("(max-width: 48em)");
+  const assign = useAssign();
+  const admin = roleAtLeast(me.user.role, "admin");
+  const [editing, setEditing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const navigate = useNavigate();
   const { data, error, isLoading } = useQuery({
     queryKey: ["package", name],
@@ -48,6 +54,22 @@ export default function PackageDetail({ name, base, onClose }: {
       {error && <Alert color="red" title="Paquet indisponible">{(error as Error).message}</Alert>}
       {p && data && (
         <Stack gap="md">
+          {admin && (
+            <Group gap="xs">
+              <Button size="xs" onClick={() => assign({ add: [p.package], pickHosts: true })}>
+                Affecter à des machines…
+              </Button>
+              {data.hosts.length > 0 && (
+                <Button size="xs" variant="default"
+                        onClick={() => assign({ remove: [p.package], pickHosts: true,
+                                                hosts: data.hosts.map((h) => ({ uuid: h.uuid, name: h.name })) })}>
+                  Retirer de machines…
+                </Button>
+              )}
+              {group && <Button size="xs" variant="default" onClick={() => setEditing(true)}>Modifier</Button>}
+              {group && <Button size="xs" variant="subtle" color="red" onClick={() => setDeleting(true)}>Supprimer</Button>}
+            </Group>
+          )}
           {p.description && <Text size="sm">{p.description}</Text>}
           <Card withBorder radius="md" padding="sm">
             <Stack gap={6}>
@@ -120,9 +142,9 @@ export default function PackageDetail({ name, base, onClose }: {
               </Table>
             </Stack>
           )}
-          <Text size="xs" c="dimmed">
-            {base === "/groups" ? "Création et modification des groupes : v0.5." : "Suppression et nettoyage du dépôt : v0.6."}
-          </Text>
+          {base === "/packages" && <Text size="xs" c="dimmed">Suppression et nettoyage du dépôt : v0.6.</Text>}
+          {editing && <GroupEditor group={p} onClose={() => setEditing(false)} />}
+          {deleting && <GroupDelete group={p} onClose={() => setDeleting(false)} onDeleted={onClose} />}
         </Stack>
       )}
     </Drawer>

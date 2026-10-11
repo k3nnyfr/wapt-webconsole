@@ -78,21 +78,29 @@ class Signer:
 
     async def sign(self, session: str, actions: list[dict]) -> list[dict]:
         """Signed copies of ``actions``; raises ``KeyLocked`` without a valid unlock for this session."""
+        results = await self._call(session, {"op": "sign_actions", "actions": actions})
+        failed = [r for r in results if not r.get("ok")]
+        if failed:
+            raise SigningError(f"signature refused: {failed[0].get('error')}")
+        return [r["action"] for r in results]
+
+    async def build(self, session: str, jobs: list[dict], output_dir: str) -> list[dict]:
+        """Host or group packages built from their control attributes and signed, written to ``output_dir``:
+        one result per job, ``{"ok": true, "path": ..., "version": ...}`` or ``{"ok": false, "error": ...}``."""
+        return await self._call(session, {"op": "build_packages", "jobs": jobs, "output_dir": output_dir})
+
+    async def _call(self, session: str, request: dict) -> list[dict]:
         async with self._lock:
             await self._expire()
             if self.expires_in(session) <= 0 or self._proc is None:
                 raise KeyLocked("signing key locked")
             self._next_id += 1
-            request = {"id": self._next_id, "op": "sign_actions", "actions": actions}
-            self._proc.stdin.write((json.dumps(request) + "\n").encode())
+            self._proc.stdin.write((json.dumps({"id": self._next_id, **request}) + "\n").encode())
             await self._proc.stdin.drain()
             answer = await self._read_line()
         if answer.get("error"):
             raise SigningError(answer["error"])
-        failed = [r for r in answer["results"] if not r.get("ok")]
-        if failed:
-            raise SigningError(f"signature refused: {failed[0].get('error')}")
-        return [r["action"] for r in answer["results"]]
+        return answer["results"]
 
     async def close(self) -> None:
         async with self._lock:

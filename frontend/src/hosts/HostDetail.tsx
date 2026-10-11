@@ -33,6 +33,7 @@ import { type AgentTask, type AgentTasks, ApiError, type HostDetail as Detail, t
 import { useActionMenu } from "../components/ActionMenu";
 import { rfc3339, rfc3339Date } from "../dates";
 import { type Target, useHostMenu, usePackageMenu } from "../ops/actions";
+import { useAssign } from "../ops/assign";
 import { useSigning } from "../ops/signing";
 import { ConnectedBadge, RelativeDate, StatusBadge } from "./columns";
 
@@ -338,11 +339,19 @@ function Tasks({ uuid, connected }: { uuid: string; connected: boolean }) {
   );
 }
 
-function HostPackageTab({ d }: { d: Detail }) {
+function HostPackageTab({ d, me }: { d: Detail; me: Me }) {
+  const assign = useAssign();
   const hp = d.host_package;
-  if (!hp) return <Alert color="gray">Aucun paquet machine sur le serveur pour cette machine.</Alert>;
+  const edit = roleAtLeast(me.user.role, "admin") && (
+    <Button size="xs" variant="light" style={{ alignSelf: "flex-start" }}
+            onClick={() => assign({ hosts: [{ uuid: d.host.uuid, name: d.host.name }] })}>
+      {hp ? "Modifier les paquets et groupes…" : "Créer le paquet machine…"}
+    </Button>
+  );
+  if (!hp) return <Stack><Alert color="gray">Aucun paquet machine sur le serveur pour cette machine.</Alert>{edit}</Stack>;
   return (
     <Stack gap="sm">
+      {edit}
       <Group gap="lg">
         <Field label="Version">{hp.version}</Field>
         <Field label="Signé par">{hp.signer}</Field>
@@ -354,7 +363,6 @@ function HostPackageTab({ d }: { d: Detail }) {
       {hp.conflicts.length
         ? <Group gap={6}>{hp.conflicts.map((p) => <Badge key={p} color="red" variant="light" tt="none">{p}</Badge>)}</Group>
         : <Text size="sm" c="dimmed">aucun</Text>}
-      <Text size="xs" c="dimmed">Modification des paquets et groupes affectés : v0.5.</Text>
     </Stack>
   );
 }
@@ -403,7 +411,7 @@ export default function HostDetail({ uuid, me, onClose }: { uuid: string | undef
           </Tabs.Panel>
           {operator && <Tabs.Panel value="tasks"><Tasks uuid={uuid} connected={data.host.connected} /></Tabs.Panel>}
           <Tabs.Panel value="softwares"><Softwares uuid={uuid} /></Tabs.Panel>
-          <Tabs.Panel value="host-package"><HostPackageTab d={data} /></Tabs.Panel>
+          <Tabs.Panel value="host-package"><HostPackageTab d={data} me={me} /></Tabs.Panel>
         </Tabs>
       )}
     </Drawer>

@@ -14,6 +14,7 @@ import { ActionMenuProvider } from "./components/ActionMenu";
 import HostsPage from "./hosts/HostsPage";
 import JournalPage from "./journal/JournalPage";
 import { ActionsProvider } from "./ops/actions";
+import { AssignProvider } from "./ops/assign";
 import { SigningProvider } from "./ops/signing";
 import RepoPage from "./repo/RepoPage";
 
@@ -59,8 +60,8 @@ function App() {
           children: [
             // the host detail is a child route: the hosts page stays mounted (search, filters) while it is open
             { path: "/", element: <HostsPage me={me} />, children: [{ path: "hosts/:uuid", element: null }] },
-            { path: "/packages", element: <RepoPage kind="package" />, children: [{ path: ":name", element: null }] },
-            { path: "/groups", element: <RepoPage kind="group" />, children: [{ path: ":name", element: null }] },
+            { path: "/packages", element: <RepoPage kind="package" me={me} />, children: [{ path: ":name", element: null }] },
+            { path: "/groups", element: <RepoPage kind="group" me={me} />, children: [{ path: ":name", element: null }] },
             { path: "/journal", element: <JournalPage /> },
             { path: "*", element: <Navigate to="/" replace /> },
           ],
@@ -73,9 +74,11 @@ function App() {
   if (!router) return <Center h="100vh"><Loader /></Center>;
   return (
     <SigningProvider me={me!}>
-      <ActionsProvider>
-        <RouterProvider router={router} />
-      </ActionsProvider>
+      <AssignProvider>
+        <ActionsProvider>
+          <RouterProvider router={router} />
+        </ActionsProvider>
+      </AssignProvider>
     </SigningProvider>
   );
 }

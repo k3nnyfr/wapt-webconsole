@@ -53,10 +53,13 @@ Retours du premier essai sur wapt-console.example.org (2026-10-11) intégrés.
 - [ ] Vérifier sur un agent Discovery l'audit à distance (`trigger_host_audit`) : relayé et accepté le 2026-10-11, mais sans effet tant qu'il n'est pas forcé (paquets pas encore à échéance) ; désormais toujours forcé
 
 ## v0.5 — Affectation et groupes
-- [ ] Ajouter ou retirer des paquets et des groupes sur une sélection de machines, avec aperçu avant/après
-- [ ] Créer, modifier et supprimer des groupes
-- [ ] Option « appliquer maintenant » (upgrade des machines connectées après publication)
-- [ ] Verrou optimiste contre les modifications concurrentes faites depuis la console lourde
+- [x] Ajouter ou retirer des paquets et des groupes sur une sélection de machines : choix, aperçu avant/après par machine, publication des paquets machine signés (`upload_hosts`)
+- [x] Règles de la console WAPT : un paquet ajouté sort des conflits, un retrait couvre les dépendances avec contrainte de version ; paquets absents du dépôt refusés
+- [x] Créer, modifier et supprimer des groupes (suppression refusée tant que des machines les utilisent)
+- [x] Option « appliquer maintenant » (upgrade signé des machines connectées après publication)
+- [x] Verrou optimiste : la version vue dans l'aperçu est relue avant l'écriture, un paquet modifié entre-temps (console WAPT, autre utilisateur) n'est pas écrasé
+- [x] Points d'entrée : menu machine et sélection, fiche machine (paquet machine), fiche paquet et groupe (« Affecter à des machines », « Retirer de machines »), page Groupes
+- [x] Dates absolues en RFC 3339 dans toute l'interface
 
 ## v0.6 — Gestion du dépôt
 - [ ] Suppression de paquets, refusée si un autre paquet en dépend

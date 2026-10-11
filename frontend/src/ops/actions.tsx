@@ -9,6 +9,7 @@ import {
   IconCopy,
   IconDownload,
   IconEraser,
+  IconFolderPlus,
   IconId,
   IconListCheck,
   IconPackage,
@@ -27,6 +28,7 @@ import { type ReactNode, createContext, useCallback, useContext, useRef, useStat
 import { type ActionName, type ActionResult, ApiError, type Host, type Me, type RepoPackage, api,
   roleAtLeast } from "../api";
 import type { Action } from "../components/ActionMenu";
+import { useAssign } from "./assign";
 import { useSigning } from "./signing";
 
 export interface Target {
@@ -246,6 +248,7 @@ function copy(text: string, what: string) {
 /** Actions of one host (with ``open``: its detail) or of a selection of hosts. */
 export function useHostMenu(me: Me) {
   const run = useRunAction();
+  const assign = useAssign();
   const role = me.user.role;
   const runRef = useRef(run);
   runRef.current = run;
@@ -269,6 +272,8 @@ export function useHostMenu(me: Me) {
     return [
       ...(single && open ? [{ key: "open", label: "Ouvrir la fiche", icon: <IconId size={16} />,
                               onClick: () => open(single.uuid) }] : []),
+      ...(roleAtLeast(role, "admin") ? [{ key: "assign", label: "Affecter des paquets ou groupes…",
+        icon: <IconFolderPlus size={16} />, onClick: () => assign({ hosts: targets }) }] : []),
       ...act("update", <IconRefresh size={16} />),
       ...act("upgrade", <IconDownload size={16} />),
       ...act("install", <IconPackage size={16} />),
@@ -288,7 +293,7 @@ export function useHostMenu(me: Me) {
                                 onClick: () => copy(single.main_ip, "Adresse IP") }] : []),
       ] : []),
     ];
-  }, [role]);
+  }, [role, assign]);
 }
 
 /** Actions on one package of one host (host detail, Packages tab). */

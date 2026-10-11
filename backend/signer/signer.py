@@ -25,6 +25,7 @@ Protocol: one JSON request on stdin, one JSON object per result on stdout, then 
     {"op": "serve", "certificate": "...", "private_key": "...", "password": "..."}
         -> {"ok": true, "ready": true, "cn": ..., "fingerprint": ...}, then one request per stdin line, until EOF:
            {"id": 1, "op": "sign_actions", "actions": [...]} -> {"id": 1, "results": [<as sign_actions>]}
+           {"id": 2, "op": "build_packages", "output_dir": "...", "jobs": [...]} -> {"id": 2, "results": [...]}
         The key is decrypted once and stays in this process only: the backend keeps the process while a user has
         unlocked the key, and ends it (closing stdin) afterwards.
 
@@ -100,9 +101,14 @@ def op_serve(req):
             continue
         try:
             request = json.loads(line)
-            if request.get("op") != "sign_actions":
-                raise ValueError("unsupported op %r" % request.get("op"))
-            emit({"id": request.get("id"), "results": sign_all(key, chain, request.get("actions"))})
+            op = request.get("op")
+            if op == "sign_actions":
+                results = sign_all(key, chain, request.get("actions"))
+            elif op == "build_packages":
+                results = build_all(key, chain, req["certificate"], request["output_dir"], request.get("jobs"))
+            else:
+                raise ValueError("unsupported op %r" % op)
+            emit({"id": request.get("id"), "results": results})
         except Exception as e:
             emit({"id": None, "error": "%s: %s" % (type(e).__name__, e)})
 
@@ -123,30 +129,37 @@ def op_verify_actions(req):
 KEPT_ATTRIBUTES = set(PackageEntry.required_attributes + PackageEntry.optional_attributes) - {"package_uuid"}
 
 
-def op_build_packages(req):
-    key, chain = load_signer(req)
+def build_all(key, chain, certificate, output_dir, jobs):
     signers = SSLCABundle()
-    signers.add_certificates_from_pem(pem_filename=req["certificate"], trusted=True)
-    os.makedirs(req["output_dir"], exist_ok=True)
-    for job in req.get("jobs") or []:
+    signers.add_certificates_from_pem(pem_filename=certificate, trusted=True)
+    os.makedirs(output_dir, exist_ok=True)
+    results = []
+    for job in jobs or []:
         control = {k: v for k, v in job["control"].items() if k in KEPT_ATTRIBUTES and v not in (None, "")}
         try:
             pe = PackageEntry(package=control.pop("package"), version=str(control.pop("version", "") or "0"),
                               section=control.pop("section", "host"), **control)
             if job.get("inc", True):
                 pe.inc_build()
-            path = pe.build_management_package(target_directory=req["output_dir"])
+            path = pe.build_management_package(target_directory=output_dir)
             pe.sign_package(private_key=key, certificate=chain)
             check = PackageEntry(waptfile=path)
             verified_by = check.check_control_signature(trusted_bundle=signers)
             with zipfile.ZipFile(path) as z:
                 files = sorted(z.namelist())
-            emit({"ok": True, "package": check.package, "version": check.version, "path": path,
-                  "size": os.path.getsize(path), "verified_by": verified_by.cn, "files": files,
-                  "control": {k: v for k, v in check.as_dict().items() if v not in (None, "")}})
+            results.append({"ok": True, "package": check.package, "version": check.version, "path": path,
+                            "size": os.path.getsize(path), "verified_by": verified_by.cn, "files": files,
+                            "control": {k: v for k, v in check.as_dict().items() if v not in (None, "")}})
         except Exception as e:
-            emit({"ok": False, "package": job["control"].get("package"), "error": "%s: %s" % (type(e).__name__, e),
-                  "trace": traceback.format_exc()})
+            results.append({"ok": False, "package": job["control"].get("package"),
+                            "error": "%s: %s" % (type(e).__name__, e), "trace": traceback.format_exc()})
+    return results
+
+
+def op_build_packages(req):
+    key, chain = load_signer(req)
+    for result in build_all(key, chain, req["certificate"], req["output_dir"], req.get("jobs")):
+        emit(result)
 
 
 OPS = {"info": op_info, "sign_actions": op_sign_actions, "verify_actions": op_verify_actions,

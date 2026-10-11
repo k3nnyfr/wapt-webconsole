@@ -1,15 +1,16 @@
 // Packages or groups of the private repository (newest versions), with their deployment on the hosts.
 
-import { Alert, Card, Group, Loader, ScrollArea, Stack, Table, Text, TextInput, Title } from "@mantine/core";
+import { Alert, Button, Card, Group, Loader, ScrollArea, Stack, Table, Text, TextInput, Title } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
-import { IconChevronDown, IconChevronUp, IconSearch, IconSelector } from "@tabler/icons-react";
+import { IconChevronDown, IconChevronUp, IconPlus, IconSearch, IconSelector } from "@tabler/icons-react";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { useMatch, useNavigate } from "react-router";
 
-import { type RepoPackage, api } from "../api";
+import { type Me, type RepoPackage, api, roleAtLeast } from "../api";
 import { RelativeDate } from "../hosts/columns";
 import { usePersistentState } from "../hosts/prefs";
+import { GroupEditor } from "../ops/groups";
 import PackageDetail from "./PackageDetail";
 import { Deployment, PackageIcon } from "./common";
 
@@ -23,7 +24,8 @@ const SORTS: Record<SortKey, (p: RepoPackage) => string | number> = {
   signed: (p) => p.signature_date,
 };
 
-export default function RepoPage({ kind }: { kind: "package" | "group" }) {
+export default function RepoPage({ kind, me }: { kind: "package" | "group"; me: Me }) {
+  const [creating, setCreating] = useState(false);
   const phone = useMediaQuery("(max-width: 48em)");
   const navigate = useNavigate();
   const base = kind === "group" ? "/groups" : "/packages";
@@ -67,8 +69,15 @@ export default function RepoPage({ kind }: { kind: "package" | "group" }) {
     <Stack gap="md">
       <Group justify="space-between">
         <Title order={2}>{title}</Title>
-        {data && <Text size="sm" c="dimmed">{shown.length} / {data.length}</Text>}
+        <Group gap="sm">
+          {data && <Text size="sm" c="dimmed">{shown.length} / {data.length}</Text>}
+          {kind === "group" && roleAtLeast(me.user.role, "admin") && (
+            <Button size="xs" leftSection={<IconPlus size={14} />} onClick={() => setCreating(true)}>Nouveau groupe</Button>
+          )}
+        </Group>
       </Group>
+      {creating && <GroupEditor onClose={() => setCreating(false)}
+                                onSaved={(name) => navigate(`${base}/${encodeURIComponent(name)}`)} />}
       <TextInput placeholder={kind === "group" ? "Rechercher un groupe ou un paquet qu'il contient"
                    : "Rechercher : nom, paquet, éditeur, description"}
                  leftSection={<IconSearch size={16} />} size={phone ? "md" : "sm"}
@@ -136,7 +145,7 @@ export default function RepoPage({ kind }: { kind: "package" | "group" }) {
           </Table>
         </ScrollArea>
       )}
-      <PackageDetail name={selected} base={base} onClose={() => navigate(base)} />
+      <PackageDetail name={selected} base={base} me={me} onClose={() => navigate(base)} />
     </Stack>
   );
 }

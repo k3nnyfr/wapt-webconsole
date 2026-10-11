@@ -8,9 +8,9 @@ import time
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Request
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
-from . import actions
+from . import actions, management
 from .auth import User, require
 from .journal import Journal
 from .signing import KeyLocked, Signer, SigningError
@@ -156,3 +156,151 @@ async def host_tasks(request: Request, uuid: Annotated[str, Path(pattern=r"^[A-Z
 async def journal(request: Request, user: Annotated[User, Depends(require("operator"))], limit: int = 100,
                   before: int | None = None, username: str | None = None, host: str | None = None):
     return await request.app.state.journal.list(limit=limit, before=before, user=username, host=host)
+
+
+# --- assignments and groups (host and group packages) ------------------------------------------------------------
+
+class AssignmentRequest(BaseModel):
+    hosts: list[str] = Field(min_length=1, max_length=1000)
+    add: list[str] = Field(default_factory=list, max_length=100)
+    remove: list[str] = Field(default_factory=list, max_length=100)
+    expected: dict[str, str | None] = Field(default_factory=dict)     # host uuid -> host package version previewed
+    apply_now: bool = False
+
+    @field_validator("hosts")
+    @classmethod
+    def valid_hosts(cls, v: list[str]) -> list[str]:
+        if not all(actions.UUID_RE.fullmatch(u) for u in v):
+            raise ValueError("invalid host uuid")
+        return list(dict.fromkeys(v))
+
+    @field_validator("add", "remove")
+    @classmethod
+    def valid_packages(cls, v: list[str]) -> list[str]:
+        if not all(actions.PACKAGE_RE.fullmatch(p) for p in v):
+            raise ValueError("invalid package name")
+        return list(dict.fromkeys(v))
+
+
+@router.post("/assignments/preview")
+async def assignment_preview(request: Request, body: AssignmentRequest,
+                             user: Annotated[User, Depends(require("admin"))]):
+    """Host packages before and after adding or removing packages and groups; nothing is written."""
+    hosts, _ = await request.app.state.inventory.hosts()
+    try:
+        changes, unknown = await management.plan_assignment(request.app.state.wapt, hosts, body.hosts, body.add,
+                                                            body.remove)
+    except LookupError as e:
+        raise HTTPException(404, str(e)) from e
+    except WaptError as e:
+        raise HTTPException(502, str(e)) from e
+    return {"changes": [c.as_dict() for c in changes], "unknown": unknown}
+
+
+@router.post("/assignments")
+async def assignment_apply(request: Request, body: AssignmentRequest,
+                           user: Annotated[User, Depends(require("admin"))]):
+    """Publish the host packages (signed with the user's key), then optionally upgrade the connected hosts."""
+    hosts, _ = await request.app.state.inventory.hosts()
+    params = {"add": body.add, "remove": body.remove, "apply_now": body.apply_now}
+    try:
+        result = await management.apply_assignment(request.app.state.wapt, request.app.state.signer,
+                                                   session_id(request), hosts, body.hosts, body.add, body.remove,
+                                                   body.expected)
+    except KeyLocked as e:
+        raise HTTPException(423, "clé de signature verrouillée") from e
+    except ValueError as e:
+        raise HTTPException(422, str(e)) from e
+    except LookupError as e:
+        raise HTTPException(404, str(e)) from e
+    except (SigningError, WaptError) as e:
+        await record(request, user, "assign", targets=[{"uuid": u, "name": u} for u in body.hosts], params=params,
+                     ok=False, detail=str(e))
+        raise HTTPException(502, str(e)) from e
+    targets = [{"uuid": p["uuid"], "name": p["name"]} for p in result["published"]]
+    detail = f"publiés : {len(result['published'])}"
+    if result["conflicts"]:
+        detail += f" ; modifiés entre-temps : {', '.join(c['name'] for c in result['conflicts'])}"
+    if result["failed"]:
+        detail += f" ; échecs : {', '.join(f['name'] for f in result['failed'])}"
+    result["upgrade"] = None
+    connected = [p for p in result["published"] if p["connected"]]
+    if body.apply_now and connected:
+        upgrade = actions.ActionRequest(action="upgrade", hosts=[p["uuid"] for p in connected])
+        plan = actions.plan(upgrade, actions.ACTIONS["upgrade"], hosts)
+        try:
+            signed = await request.app.state.signer.sign(session_id(request), plan.actions)
+            result["upgrade"] = await actions.send(request.app.state.wapt, plan, signed)
+            detail += f" ; mise à jour lancée : {result['upgrade']}"
+        except (SigningError, WaptError) as e:
+            result["upgrade"] = f"échec : {e}"
+            detail += f" ; mise à jour non lancée : {e}"
+    await record(request, user, "assign", targets=targets, params=params,
+                 ok=not result["failed"] and not result["conflicts"], detail=detail)
+    return result
+
+
+class GroupRequest(BaseModel):
+    name: str = Field(pattern=actions.PACKAGE_RE.pattern)
+    description: str = Field(default="", max_length=500)
+    depends: list[str] = Field(default_factory=list, max_length=200)
+    conflicts: list[str] = Field(default_factory=list, max_length=200)
+    expected_version: str | None = None
+
+    @field_validator("depends", "conflicts")
+    @classmethod
+    def valid_packages(cls, v: list[str]) -> list[str]:
+        if not all(actions.PACKAGE_RE.fullmatch(p) for p in v):
+            raise ValueError("invalid package name")
+        return list(dict.fromkeys(v))
+
+
+async def _group_call(request: Request, user: User, action: str, name: str, params: dict, coro):
+    try:
+        result = await coro
+    except KeyLocked as e:
+        raise HTTPException(423, "clé de signature verrouillée") from e
+    except management.Conflict as e:
+        await record(request, user, action, targets=[{"uuid": name, "name": name}], params=params, ok=False,
+                     detail=str(e))
+        raise HTTPException(409, str(e)) from e
+    except ValueError as e:
+        raise HTTPException(422, str(e)) from e
+    except LookupError as e:
+        raise HTTPException(404, str(e)) from e
+    except (SigningError, WaptError) as e:
+        await record(request, user, action, targets=[{"uuid": name, "name": name}], params=params, ok=False,
+                     detail=str(e))
+        raise HTTPException(502, str(e)) from e
+    await record(request, user, action, targets=[{"uuid": name, "name": name}], params=params,
+                 detail=f"version {result.get('version', '')}".strip() if action != "group_delete"
+                 else f"{result['deleted_versions']} version(s) supprimée(s)")
+    return result
+
+
+@router.post("/groups")
+async def group_create(request: Request, body: GroupRequest, user: Annotated[User, Depends(require("admin"))]):
+    params = {"packages": body.depends, "description": body.description}
+    return await _group_call(request, user, "group_create", body.name, params, management.save_group(
+        request.app.state.wapt, request.app.state.signer, session_id(request), body.name,
+        description=body.description, depends=body.depends, conflicts=body.conflicts, expected_version=None,
+        create=True))
+
+
+@router.put("/groups/{name}")
+async def group_update(request: Request, name: Annotated[str, Path(pattern=actions.PACKAGE_RE.pattern)],
+                       body: GroupRequest, user: Annotated[User, Depends(require("admin"))]):
+    if body.name != name:
+        raise HTTPException(422, "renaming a group is not supported")
+    params = {"packages": body.depends, "description": body.description}
+    return await _group_call(request, user, "group_update", name, params, management.save_group(
+        request.app.state.wapt, request.app.state.signer, session_id(request), name,
+        description=body.description, depends=body.depends, conflicts=body.conflicts,
+        expected_version=body.expected_version, create=False))
+
+
+@router.delete("/groups/{name}")
+async def group_delete(request: Request, name: Annotated[str, Path(pattern=actions.PACKAGE_RE.pattern)],
+                       user: Annotated[User, Depends(require("admin"))], expected_version: str | None = None):
+    return await _group_call(request, user, "group_delete", name, {}, management.delete_group(
+        request.app.state.wapt, name, expected_version))

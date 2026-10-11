@@ -42,6 +42,8 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 export const api = {
   get: <T>(path: string) => request<T>("GET", path),
   post: <T>(path: string, body?: unknown) => request<T>("POST", path, body ?? {}),
+  put: <T>(path: string, body?: unknown) => request<T>("PUT", path, body ?? {}),
+  delete: <T>(path: string) => request<T>("DELETE", path),
 };
 
 // --- Types of the backend answers ---------------------------------------------------------------------------
@@ -233,4 +235,29 @@ export interface JournalEntry {
   params: { packages?: string[]; description?: string; force?: boolean };
   ok: boolean;
   detail: string;
+}
+
+export interface AssignmentChange {
+  uuid: string;
+  name: string;
+  connected: boolean;
+  version: string | null;
+  depends: string[];
+  conflicts: string[];
+  new_depends: string[];
+  new_conflicts: string[];
+  changed: boolean;
+}
+
+export interface AssignmentPreview {
+  changes: AssignmentChange[];
+  unknown: string[];
+}
+
+export interface AssignmentResult {
+  published: { uuid: string; name: string; connected: boolean; version: string; previous: string | null }[];
+  unchanged: { uuid: string; name: string }[];
+  conflicts: { uuid: string; name: string; expected: string | null; found: string | null }[];
+  failed: { uuid: string; name: string; error: string }[];
+  upgrade: string | null;
 }
