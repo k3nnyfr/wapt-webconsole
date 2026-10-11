@@ -6,9 +6,7 @@
 
 Console web pour serveur [WAPT](https://www.wapt.fr) **Discovery** : inventaire des machines, actions à distance, affectation de paquets et de groupes, gestion du dépôt, import depuis le store Tranquil IT. Elle remplace `waptconsole.exe` au quotidien, depuis un navigateur sur ordinateur, tablette ou téléphone Android.
 
-**[Documentation](docs/README.md)** · **[Changelog](CHANGELOG.md)** · **[Feuille de route](ROADMAP.md)** · Licence [GPL-3.0-or-later](LICENSE), comme WAPT
-
-> Projet en cours de développement, dépôt privé.
+**[Documentation](docs/README.md)** · **[Dépôt](https://git.k3nny.fr/k3nny/wapt-webconsole)** · **[Changelog](CHANGELOG.md)** · **[Feuille de route](ROADMAP.md)** · Licence [GPL-3.0-or-later](LICENSE), comme WAPT
 
 ![Liste des machines : indicateurs servant de filtres, colonnes triables, sélection de deux machines et barre d'actions groupées](docs/images/hosts.png)
 

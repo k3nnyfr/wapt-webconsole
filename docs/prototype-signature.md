@@ -2,6 +2,8 @@
 
 Objectif : vérifier qu'un conteneur peut signer les actions et les requêtes destinées aux agents WAPT avec l'implémentation de référence (`waptcrypto`), et qu'un agent réel les accepte. Le flux passe par le reverse proxy proxy.example.org, comme pour n'importe quel serveur WAPT.
 
+Les essais ont été menés sur une installation réelle ; ses noms d'hôtes, de machines et d'utilisateurs sont remplacés ici par des valeurs fictives.
+
 Fichiers :
 - `backend/signer/signer.py` : exécuté par `waptpython`, requête JSON sur stdin, une ligne JSON par résultat sur stdout. Opérations `info`, `sign_actions` et `verify_actions`. La passphrase ne transite que par stdin.
 - `backend/proto/proto_signing.py` : scénario de test en Python standard (sans dépendance), qui appelle `signer.py` en sous-processus, comme le fera le backend.

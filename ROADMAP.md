@@ -5,7 +5,7 @@ Plan détaillé, architecture et décisions : [PLAN.md](PLAN.md).
 Les étapes v0.1 à v0.7 sont livrées dans la release **v0.7.0** (2026-10-11), voir le [changelog](CHANGELOG.md).
 
 ## v0.1 — Phase 0 : cadrage et prototypes (prototypes validés le 2026-10-11) — ✓ livré en v0.7.0
-- [x] Créer le dépôt `wapt-webconsole`, **privé** sur git.k3nny.fr (miroir GitHub à l'annonce)
+- [x] Créer le dépôt `wapt-webconsole` sur git.k3nny.fr (privé jusqu'à la v0.7.0, public depuis)
 - [x] Recenser les endpoints de la console Discovery à partir des sources de WAPT 2.7 ([docs/wapt-api.md](docs/wapt-api.md))
 - [ ] Confirmer sur le serveur réel les points restés ouverts (droits, audit, redémarrage, statut des tâches)
 - [x] Prototype : image Docker avec `waptpython`, requête signée acceptée par un agent réel via proxy.example.org ([docs/prototype-signature.md](docs/prototype-signature.md))
@@ -20,13 +20,13 @@ Les étapes v0.1 à v0.7 sont livrées dans la release **v0.7.0** (2026-10-11), 
 - [x] Menu d'actions unique : clic droit, appui long, bouton `⋮`, feuille d'actions sur mobile
 - [x] Connexion OIDC (code + PKCE), session signée, rôles par groupes, CSRF, durée de vie absolue
 - [ ] Compte local de secours (mot de passe et TOTP)
-- [x] Client WAPT (compte admin, reconnexion sur 401), testé contre wapt.example.org
+- [x] Client WAPT (compte admin, reconnexion sur 401), testé contre un serveur réel
 - [ ] Lecture des index `Packages`, comparaison de versions WAPT
 - [x] Images Docker durcies et docker-compose, testés en local (podman)
-- [x] Déploiement sur https://wapt-console.example.org (docker.example.org, Authelia OIDC, vhost et certificat sur proxy.example.org)
+- [x] Déploiement réel : docker-compose derrière Authelia (OIDC), deux reverse proxies en série, réseau sans « hairpin NAT »
 
 ## v0.3 — Inventaire en lecture seule *(premier usage réel)* — ✓ livré en v0.7.0
-Retours du premier essai sur wapt-console.example.org (2026-10-11) intégrés.
+Retours du premier essai en production (2026-10-11) intégrés.
 
 - [x] **Page Machines comme page d'accueil** : suppression du tableau de bord ; ses indicateurs (machines, connectées, à mettre à jour, en erreur) passent en en-tête de la page et servent de filtres rapides
 - [x] Navigation prête pour les pages suivantes : Paquets et Groupes (v0.3), Journal (v0.4), Store (v0.7)

@@ -228,4 +228,4 @@ Voir [ROADMAP.md](ROADMAP.md).
 | Clé de signature | Option A (passphrase saisie dans l'interface), B en option |
 | Stack | FastAPI + waptpython / React + Mantine / docker-compose |
 | Supports | Ordinateur, tablette et mobile Android (responsive, appui long, PWA) |
-| Dépôt | Privé sur git.k3nny.fr jusqu'à l'annonce ; pas de miroir GitHub avant |
+| Dépôt | Public sur git.k3nny.fr depuis la v0.7.0 (2026-10-11), privé pendant le développement des premières versions |

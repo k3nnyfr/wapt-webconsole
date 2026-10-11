@@ -167,7 +167,7 @@ def main() -> int:
         if res.get("success"):
             result = res.get("result") or {}
             print(f"  last_event_id={result.get('last_event_id')} running={bool(result.get('running'))} "
-                  f"pending={len((result.get('pending') or []))} done={len(result.get('done') or [])}")
+                  f"pending={len(result.get('pending') or [])} done={len(result.get('done') or [])}")
         res = wapt.call("POST", "api/v3/host_tasks_status", dict(status_req, timeout=3), timeout=30)
         failures += not check("tampered request refused", not res.get("success"), res.get("msg", "")[:160])
 
