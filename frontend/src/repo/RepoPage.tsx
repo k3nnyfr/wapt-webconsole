@@ -13,6 +13,8 @@ import { usePersistentState } from "../hosts/prefs";
 import PackageDetail from "./PackageDetail";
 import { Deployment, PackageIcon } from "./common";
 
+const packagesCount = (n: number) => `${n} paquet${n > 1 ? "s" : ""}`;
+
 type SortKey = "name" | "hosts" | "pending" | "signed";
 const SORTS: Record<SortKey, (p: RepoPackage) => string | number> = {
   name: (p) => (p.name || p.package).toLowerCase(),
@@ -83,7 +85,7 @@ export default function RepoPage({ kind }: { kind: "package" | "group" }) {
                 <Stack gap={4} style={{ minWidth: 0, flex: 1 }}>
                   <Text fw={600} truncate>{p.name || p.package}</Text>
                   <Text size="sm" c="dimmed" truncate>
-                    {kind === "group" ? `${p.depends.length} paquets` : `${p.package} · ${p.version}`}
+                    {kind === "group" ? packagesCount(p.depends.length) : `${p.package} · ${p.version}`}
                   </Text>
                   <Deployment stats={p.stats} />
                 </Stack>
@@ -118,7 +120,7 @@ export default function RepoPage({ kind }: { kind: "package" | "group" }) {
                     </Group>
                   </Table.Td>
                   <Table.Td style={{ whiteSpace: "nowrap" }}>
-                    {kind === "group" ? `${p.depends.length} paquets` : p.version}
+                    {kind === "group" ? packagesCount(p.depends.length) : p.version}
                   </Table.Td>
                   {kind === "package" && (
                     <Table.Td>{[p.target_os, p.architecture].filter(Boolean).join(" · ")}</Table.Td>
