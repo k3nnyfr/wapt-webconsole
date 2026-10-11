@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# Node
+node_modules/
+dist/
+.vite/
+
+# Secrets and local configuration: never committed
+.env
+*.pem
+*.key
+*.crt
+*.p12
+secrets/
+!backend/tests/data/*.crt
+!backend/tests/data/*.pem
+
+# Built or downloaded WAPT packages
+*.wapt
+out/
