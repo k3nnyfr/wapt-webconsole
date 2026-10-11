@@ -38,6 +38,17 @@ class Settings(BaseSettings):
     # Seconds between two inventory reads while browsers follow the live status
     live_interval: float = 10.0
 
+    # Signature of the agent actions: certificate and encrypted private key of the WAPT administrator
+    signer_certificate_file: Path | None = None
+    signer_key_file: Path | None = None
+    signer_unlock_minutes: int = 30
+    waptpython: str = "/opt/wapt/waptpython.sh"
+    signer_script: str = "/app/signer/signer.py"
+
+    # Persistent data (audit journal)
+    data_dir: Path = Path("/data")
+    journal_retention_days: int = 365
+
     # OpenID Connect (Authelia or any provider)
     oidc_issuer: str = ""
     oidc_client_id: str = "wapt-webconsole"

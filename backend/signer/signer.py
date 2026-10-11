@@ -22,6 +22,12 @@ Protocol: one JSON request on stdin, one JSON object per result on stdout, then 
         (``build_management_package``, as the WAPT console does), version incremented unless ``inc`` is false,
         signed, then checked against the signer certificate. Nothing is uploaded.
 
+    {"op": "serve", "certificate": "...", "private_key": "...", "password": "..."}
+        -> {"ok": true, "ready": true, "cn": ..., "fingerprint": ...}, then one request per stdin line, until EOF:
+           {"id": 1, "op": "sign_actions", "actions": [...]} -> {"id": 1, "results": [<as sign_actions>]}
+        The key is decrypted once and stays in this process only: the backend keeps the process while a user has
+        unlocked the key, and ends it (closing stdin) afterwards.
+
 The passphrase only travels on stdin: never on the command line nor in the environment.
 """
 
@@ -69,13 +75,36 @@ def op_info(req):
           "code_signing": bool(cert.is_code_signing), "key_matches": True})
 
 
+def sign_all(key, chain, actions):
+    results = []
+    for action in actions or []:
+        try:
+            results.append({"ok": True, "action": key.sign_claim(action, signer_certificate_chain=chain)})
+        except Exception as e:
+            results.append({"ok": False, "uuid": action.get("uuid"), "error": "%s: %s" % (type(e).__name__, e)})
+    return results
+
+
 def op_sign_actions(req):
     key, chain = load_signer(req)
-    for action in req.get("actions") or []:
+    for result in sign_all(key, chain, req.get("actions")):
+        emit(result)
+
+
+def op_serve(req):
+    key, chain = load_signer(req)
+    req.pop("password", None)
+    emit({"ok": True, "ready": True, "cn": chain[0].cn, "fingerprint": chain[0].fingerprint})
+    for line in sys.stdin:
+        if not line.strip():
+            continue
         try:
-            emit({"ok": True, "action": key.sign_claim(action, signer_certificate_chain=chain)})
+            request = json.loads(line)
+            if request.get("op") != "sign_actions":
+                raise ValueError("unsupported op %r" % request.get("op"))
+            emit({"id": request.get("id"), "results": sign_all(key, chain, request.get("actions"))})
         except Exception as e:
-            emit({"ok": False, "uuid": action.get("uuid"), "error": "%s: %s" % (type(e).__name__, e)})
+            emit({"id": None, "error": "%s: %s" % (type(e).__name__, e)})
 
 
 def op_verify_actions(req):
@@ -121,12 +150,13 @@ def op_build_packages(req):
 
 
 OPS = {"info": op_info, "sign_actions": op_sign_actions, "verify_actions": op_verify_actions,
-       "build_packages": op_build_packages}
+       "build_packages": op_build_packages, "serve": op_serve}
 
 
 def main():
     try:
-        req = json.load(sys.stdin)
+        # serve mode keeps reading stdin: only its first line is the request
+        req = json.loads(sys.stdin.readline())
         OPS[req["op"]](req)
     except Exception as e:
         emit({"ok": False, "fatal": True, "error": "%s: %s" % (type(e).__name__, e), "trace": traceback.format_exc()})

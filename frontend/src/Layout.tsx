@@ -6,14 +6,15 @@ import { useMediaQuery } from "@mantine/hooks";
 import type { ReactNode } from "react";
 import { NavLink as RouterLink, Outlet, useLocation } from "react-router";
 
-import { type Me, api } from "./api";
+import { type Me, api, roleAtLeast } from "./api";
+import { KeyButton } from "./ops/signing";
 
 // Pages to come are shown disabled, with the version that brings them (ROADMAP.md)
 const NAV = [
   { to: "/", label: "Machines", icon: IconDeviceDesktop },
   { to: "/packages", label: "Paquets", icon: IconPackage },
   { to: "/groups", label: "Groupes", icon: IconFolders },
-  { to: "/journal", label: "Journal", icon: IconHistory, soon: "v0.4" },
+  { to: "/journal", label: "Journal", icon: IconHistory, operator: true },
 ];
 
 async function logout() {
@@ -24,6 +25,8 @@ async function logout() {
 export default function Layout({ me }: { me: Me }) {
   const { pathname } = useLocation();
   const phone = useMediaQuery("(max-width: 48em)");
+  const nav = NAV.map((n) => ({ ...n,
+    soon: "operator" in n && n.operator && !roleAtLeast(me.user.role, "operator") ? "opérateurs" : undefined }));
   const active = (to: string) => (to === "/" ? pathname === "/" || pathname.startsWith("/hosts") : pathname.startsWith(to));
 
   return (
@@ -40,6 +43,7 @@ export default function Layout({ me }: { me: Me }) {
             <Text fw={700}>WAPT Console</Text>
           </Group>
           <Group gap="xs" wrap="nowrap">
+            <KeyButton me={me} />
             <Text size="sm" c="dimmed" visibleFrom="sm">{me.user.name || me.user.username}</Text>
             <ActionIcon variant="subtle" color="gray" size="lg" aria-label="Se déconnecter" onClick={logout}>
               <IconLogout size={18} />
@@ -49,9 +53,9 @@ export default function Layout({ me }: { me: Me }) {
       </AppShell.Header>
 
       <AppShell.Navbar p="xs">
-        {NAV.map(({ to, label, icon: Icon, soon }) => (
+        {nav.map(({ to, label, icon: Icon, soon }) => (
           <NavLink key={to} component={RouterLink} to={to} label={label} active={active(to)} disabled={!!soon}
-                   description={soon ? `bientôt (${soon})` : undefined} leftSection={<Icon size={18} />} />
+                   description={soon ? `réservé aux ${soon}` : undefined} leftSection={<Icon size={18} />} />
         ))}
       </AppShell.Navbar>
 
@@ -62,7 +66,7 @@ export default function Layout({ me }: { me: Me }) {
       {phone && (
         <AppShell.Footer style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
           <Group h="100%" grow gap={0}>
-            {NAV.map(({ to, label, icon: Icon, soon }) => (
+            {nav.map(({ to, label, icon: Icon, soon }) => (
               <BottomTab key={to} to={to} label={label} active={active(to)} disabled={!!soon}
                          icon={<Icon size={22} />} />
             ))}

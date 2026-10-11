@@ -23,9 +23,17 @@ if [ ! -s secrets/oidc_client_secret ]; then
     new_client=1
 fi
 
+# Signing certificate and key of the WAPT administrator, copied by hand: the key must stay encrypted
+for f in signer.crt signer.pem; do
+    [ -s "secrets/$f" ] || echo "À copier : secrets/$f (certificat et clé PEM chiffrée de l'administrateur WAPT)"
+done
+if [ -s secrets/signer.pem ] && ! grep -q "ENCRYPTED" secrets/signer.pem; then
+    echo "ATTENTION : secrets/signer.pem n'est pas chiffrée : la protéger par une passphrase avant de l'utiliser" >&2
+fi
+
 # The backend runs as uid 10001 and reads its secrets through bind mounts
 if [ "$(id -u)" = 0 ]; then
-    chown 10001:10001 secrets/session_secret secrets/wapt_password secrets/oidc_client_secret 2>/dev/null || true
+    chown 10001:10001 secrets/* 2>/dev/null || true
     chmod 400 secrets/*
 fi
 ls -l secrets

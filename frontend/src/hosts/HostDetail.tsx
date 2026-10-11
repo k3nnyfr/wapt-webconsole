@@ -1,8 +1,10 @@
 // Host detail: side panel on a computer, full screen on a phone. Each tab loads its data when first opened.
 
 import {
+  ActionIcon,
   Alert,
   Badge,
+  Button,
   Card,
   Code,
   Drawer,
@@ -22,11 +24,15 @@ import {
   UnstyledButton,
 } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
-import { IconSearch } from "@tabler/icons-react";
+import { IconDotsVertical, IconLock, IconSearch } from "@tabler/icons-react";
 import { useQuery } from "@tanstack/react-query";
 import { type ReactNode, useMemo, useState } from "react";
 
-import { type HostDetail as Detail, type HostPackage, type Software, api } from "../api";
+import { type AgentTask, type AgentTasks, ApiError, type HostDetail as Detail, type HostPackage, type Me,
+  type Software, api, roleAtLeast } from "../api";
+import { useActionMenu } from "../components/ActionMenu";
+import { type Target, useHostMenu, usePackageMenu } from "../ops/actions";
+import { useSigning } from "../ops/signing";
 import { ConnectedBadge, RelativeDate, StatusBadge } from "./columns";
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
@@ -147,7 +153,9 @@ function PackageLog({ pkg, onClose }: { pkg: HostPackage | null; onClose: () => 
   );
 }
 
-function Packages({ uuid }: { uuid: string }) {
+function Packages({ uuid, me, host }: { uuid: string; me: Me; host: Target }) {
+  const packageMenu = usePackageMenu(me);
+  const { openFrom } = useActionMenu();
   const [problems, setProblems] = useState(false);
   const [search, setSearch] = useState("");
   const [log, setLog] = useState<HostPackage | null>(null);
@@ -188,6 +196,12 @@ function Packages({ uuid }: { uuid: string }) {
                 <Group gap={4} wrap="nowrap">
                   {p.audit_status && p.audit_status !== "OK" && <StatusBadge value={p.audit_status} />}
                   <StatusBadge value={p.install_status} />
+                  {p.section !== "host" && packageMenu(host, p.package).length > 0 && (
+                    <ActionIcon component="div" variant="subtle" color="gray" aria-label="Actions sur le paquet"
+                                onClick={(e) => openFrom(e, p.package, packageMenu(host, p.package))}>
+                      <IconDotsVertical size={16} />
+                    </ActionIcon>
+                  )}
                 </Group>
               </Group>
             </Card>
@@ -253,6 +267,76 @@ function Softwares({ uuid }: { uuid: string }) {
   );
 }
 
+const RUNSTATUS: Record<string, string> = { DONE: "green", ERROR: "red", CANCELLED: "gray", RUNNING: "blue" };
+
+function TaskRow({ t, onClick }: { t: AgentTask; onClick: () => void }) {
+  return (
+    <UnstyledButton onClick={onClick}>
+      <Card withBorder radius="sm" padding="xs">
+        <Stack gap={4}>
+          <Group justify="space-between" wrap="nowrap">
+            <Text size="sm" fw={500} truncate>{t.description}</Text>
+            {t.runstatus && <Badge size="sm" variant="light" color={RUNSTATUS[t.runstatus] ?? "gray"}>{t.runstatus}</Badge>}
+          </Group>
+          {t.summary && <Text size="xs" c="dimmed" lineClamp={2}>{t.summary}</Text>}
+          {t.progress != null && t.runstatus === "RUNNING" && <Progress value={t.progress} size="sm" animated />}
+          <Text size="xs" c="dimmed">
+            {[t.created_by && `par ${t.created_by}`, t.finished && `terminée ${new Date(t.finished).toLocaleTimeString("fr-FR")}`]
+              .filter(Boolean).join(" · ")}
+          </Text>
+        </Stack>
+      </Card>
+    </UnstyledButton>
+  );
+}
+
+function Tasks({ uuid, connected }: { uuid: string; connected: boolean }) {
+  const { status, ensureUnlocked } = useSigning();
+  const [log, setLog] = useState<AgentTask | null>(null);
+  const unlocked = !!status?.unlocked;
+  const { data, error, isLoading } = useQuery({
+    queryKey: ["host-tasks", uuid],
+    queryFn: () => api.get<AgentTasks>(`/api/hosts/${uuid}/tasks`),
+    enabled: unlocked && connected,
+    refetchInterval: 3000,
+    retry: false,
+  });
+  if (!connected) return <Alert color="gray">Machine déconnectée : ses tâches ne sont pas consultables.</Alert>;
+  if (!unlocked) {
+    return (
+      <Alert color="blue" title="Clé de signature verrouillée">
+        <Stack gap="xs" align="flex-start">
+          <Text size="sm">L'agent n'accepte que des demandes signées, même pour consulter ses tâches.</Text>
+          <Button size="xs" leftSection={<IconLock size={14} />} onClick={() => void ensureUnlocked()}>Déverrouiller</Button>
+        </Stack>
+      </Alert>
+    );
+  }
+  if (isLoading) return <Loader />;
+  if (error) return <Alert color="red">{error instanceof ApiError ? error.message : String(error)}</Alert>;
+  if (!data) return null;
+  const section = (title: string, tasks: AgentTask[]) => tasks.length > 0 && (
+    <Stack gap={4}>
+      <Text fw={600} size="sm">{title} ({tasks.length})</Text>
+      {tasks.map((t) => <TaskRow key={`${title}-${t.id}`} t={t} onClick={() => setLog(t)} />)}
+    </Stack>
+  );
+  return (
+    <Stack gap="md">
+      <Text size="xs" c="dimmed">Actualisé toutes les 3 secondes · toucher une tâche pour son journal</Text>
+      {section("En cours", data.running ? [data.running] : [])}
+      {section("En attente", data.pending)}
+      {section("En erreur", data.errors)}
+      {section("Terminées", data.done)}
+      {!data.running && !data.pending.length && !data.done.length && !data.errors.length &&
+        <Text size="sm" c="dimmed">Aucune tâche récente.</Text>}
+      <Modal opened={log !== null} onClose={() => setLog(null)} title={log?.description} size="xl">
+        <Code block style={{ maxHeight: "60vh", overflow: "auto", whiteSpace: "pre-wrap" }}>{log?.logs || "(vide)"}</Code>
+      </Modal>
+    </Stack>
+  );
+}
+
 function HostPackageTab({ d }: { d: Detail }) {
   const hp = d.host_package;
   if (!hp) return <Alert color="gray">Aucun paquet machine sur le serveur pour cette machine.</Alert>;
@@ -274,8 +358,11 @@ function HostPackageTab({ d }: { d: Detail }) {
   );
 }
 
-export default function HostDetail({ uuid, onClose }: { uuid: string | undefined; onClose: () => void }) {
+export default function HostDetail({ uuid, me, onClose }: { uuid: string | undefined; me: Me; onClose: () => void }) {
   const phone = useMediaQuery("(max-width: 48em)");
+  const hostMenu = useHostMenu(me);
+  const { openFrom } = useActionMenu();
+  const operator = roleAtLeast(me.user.role, "operator");
   const [tab, setTab] = useState<string | null>("summary");
   const { data, error, isLoading } = useQuery({
     queryKey: ["host", uuid],
@@ -289,20 +376,31 @@ export default function HostDetail({ uuid, onClose }: { uuid: string | undefined
             title={<Stack gap={2}>
               <Title order={3}>{data?.host.name ?? "Machine"}</Title>
               {data && <Group gap={6}><ConnectedBadge connected={data.host.connected} />
-                <StatusBadge value={data.host.status} /></Group>}
+                <StatusBadge value={data.host.status} />
+                {operator && (
+                  <Button size="compact-xs" variant="light" leftSection={<IconDotsVertical size={12} />}
+                          onClick={(e) => openFrom(e, data.host.name, hostMenu([data.host]))}>Actions</Button>
+                )}</Group>}
             </Stack>}>
       {isLoading && <Loader />}
       {error && <Alert color="red" title="Fiche indisponible">{(error as Error).message}</Alert>}
       {data && uuid && (
-        <Tabs value={tab} onChange={setTab} keepMounted={false}>
-          <Tabs.List mb="md" grow={!!phone}>
+        <Tabs value={tab} onChange={setTab} keepMounted={false} style={{ minWidth: 0 }}>
+          {/* on a phone the tabs scroll sideways instead of widening the panel */}
+          <Tabs.List mb="md" style={phone ? { flexWrap: "nowrap", overflowX: "auto", maxWidth: "calc(100vw - 32px)",
+                                               scrollbarWidth: "none" } : undefined}>
             <Tabs.Tab value="summary">Résumé</Tabs.Tab>
             <Tabs.Tab value="packages">Paquets</Tabs.Tab>
             <Tabs.Tab value="softwares">Logiciels</Tabs.Tab>
-            <Tabs.Tab value="host-package">{phone ? "Paquet m." : "Paquet machine"}</Tabs.Tab>
+            {operator && <Tabs.Tab value="tasks">Tâches</Tabs.Tab>}
+            <Tabs.Tab value="host-package">Paquet machine</Tabs.Tab>
           </Tabs.List>
           <Tabs.Panel value="summary"><Summary d={data} /></Tabs.Panel>
-          <Tabs.Panel value="packages"><Packages uuid={uuid} /></Tabs.Panel>
+          <Tabs.Panel value="packages">
+            <Packages uuid={uuid} me={me}
+                      host={{ uuid, name: data.host.name, connected: data.host.connected }} />
+          </Tabs.Panel>
+          {operator && <Tabs.Panel value="tasks"><Tasks uuid={uuid} connected={data.host.connected} /></Tabs.Panel>}
           <Tabs.Panel value="softwares"><Softwares uuid={uuid} /></Tabs.Panel>
           <Tabs.Panel value="host-package"><HostPackageTab d={data} /></Tabs.Panel>
         </Tabs>

@@ -29,10 +29,15 @@ services:
       WWC_OIDC_CLIENT_ID: ${WWC_OIDC_CLIENT_ID:-wapt-webconsole}
       WWC_OIDC_CLIENT_SECRET_FILE: /run/secrets/oidc_client_secret
       WWC_SESSION_SECRET_FILE: /run/secrets/session_secret
+      # Certificate and encrypted private key signing the agent actions (passphrase typed in the console)
+      WWC_SIGNER_CERTIFICATE_FILE: /run/secrets/signer_certificate
+      WWC_SIGNER_KEY_FILE: /run/secrets/signer_key
       # The backend is only reachable from the frontend container: trust its X-Forwarded-* headers
       FORWARDED_ALLOW_IPS: "*"
-    secrets: [wapt_password, oidc_client_secret, session_secret]
+    secrets: [wapt_password, oidc_client_secret, session_secret, signer_certificate, signer_key]
     tmpfs: [/tmp]
+    volumes:
+      - data:/data            # audit journal
     healthcheck:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health')"]
       interval: 30s
@@ -57,3 +62,10 @@ secrets:
     file: ./secrets/oidc_client_secret
   session_secret:
     file: ./secrets/session_secret
+  signer_certificate:
+    file: ./secrets/signer.crt
+  signer_key:
+    file: ./secrets/signer.pem      # encrypted PEM key: useless without its passphrase
+
+volumes:
+  data:

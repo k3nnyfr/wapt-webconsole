@@ -38,7 +38,7 @@ class FakeOidc:
 def settings(tmp_path):
     secret = tmp_path / "session"
     secret.write_text("x" * 40)
-    return Settings(session_secret_file=secret, public_url="http://testserver")
+    return Settings(session_secret_file=secret, public_url="http://testserver", data_dir=secret.parent)
 
 
 def client_for(settings, claims=None) -> TestClient:

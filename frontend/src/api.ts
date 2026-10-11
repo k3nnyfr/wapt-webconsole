@@ -177,3 +177,60 @@ export interface PackageDetail {
   hosts: { uuid: string; name: string; version: string; install_status: string; install_date: string;
            audit_status: string }[];
 }
+
+export const ROLES: Role[] = ["viewer", "operator", "admin"];
+export const roleAtLeast = (role: Role, required: Role) => ROLES.indexOf(role) >= ROLES.indexOf(required);
+
+export interface SigningStatus {
+  configured: boolean;
+  unlocked: boolean;
+  expires_in: number;
+  ttl: number;
+  identity: { cn?: string; fingerprint?: string };
+}
+
+export type ActionName =
+  | "update" | "upgrade" | "install" | "inventory" | "audit" | "cancel" | "wol"
+  | "remove" | "forget" | "description" | "restart_agent" | "reboot" | "shutdown";
+
+export interface ActionResult {
+  action: ActionName;
+  label: string;
+  message: string;
+  reached: { uuid: string; name: string }[];
+  skipped: { uuid: string; name: string }[];
+}
+
+export interface AgentTask {
+  id: number;
+  description: string;
+  summary: string;
+  progress: number | null;
+  runstatus: string;
+  created: string | null;
+  started: string | null;
+  finished: string | null;
+  created_by: string;
+  logs: string;
+}
+
+export interface AgentTasks {
+  running: AgentTask | null;
+  pending: AgentTask[];
+  done: AgentTask[];
+  errors: AgentTask[];
+  cancelled: AgentTask[];
+}
+
+export interface JournalEntry {
+  id: number;
+  at: number;
+  user: string;
+  role: Role;
+  ip: string;
+  action: string;
+  targets: { uuid: string; name: string }[];
+  params: { packages?: string[]; description?: string; force?: boolean };
+  ok: boolean;
+  detail: string;
+}

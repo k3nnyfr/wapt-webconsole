@@ -67,7 +67,7 @@ def app(tmp_path):
     secret = tmp_path / "s"
     secret.write_text("x" * 40)
     app = create_app(Settings(session_secret_file=secret, public_url="http://testserver",
-                              wapt_url="https://wapt.test"), wapt=FakeWapt())
+                              wapt_url="https://wapt.test", data_dir=tmp_path), wapt=FakeWapt())
 
     async def token(request):
         return {"userinfo": {"sub": "1", "preferred_username": "alex", "groups": ["wapt-viewers"]}}

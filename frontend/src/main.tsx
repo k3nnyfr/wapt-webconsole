@@ -12,6 +12,9 @@ import Layout from "./Layout";
 import { type Me, api, authError, loginUrl, setCsrfToken } from "./api";
 import { ActionMenuProvider } from "./components/ActionMenu";
 import HostsPage from "./hosts/HostsPage";
+import JournalPage from "./journal/JournalPage";
+import { ActionsProvider } from "./ops/actions";
+import { SigningProvider } from "./ops/signing";
 import RepoPage from "./repo/RepoPage";
 
 const theme = createTheme({ primaryColor: "blue", defaultRadius: "md" });
@@ -58,6 +61,7 @@ function App() {
             { path: "/", element: <HostsPage me={me} />, children: [{ path: "hosts/:uuid", element: null }] },
             { path: "/packages", element: <RepoPage kind="package" />, children: [{ path: ":name", element: null }] },
             { path: "/groups", element: <RepoPage kind="group" />, children: [{ path: ":name", element: null }] },
+            { path: "/journal", element: <JournalPage /> },
             { path: "*", element: <Navigate to="/" replace /> },
           ],
         },
@@ -67,7 +71,13 @@ function App() {
   if (authError && !me) return <AuthMessage code={authError} />;
   if (error) return <AuthMessage code="callback" />;
   if (!router) return <Center h="100vh"><Loader /></Center>;
-  return <RouterProvider router={router} />;
+  return (
+    <SigningProvider me={me!}>
+      <ActionsProvider>
+        <RouterProvider router={router} />
+      </ActionsProvider>
+    </SigningProvider>
+  );
 }
 
 createRoot(document.getElementById("root")!).render(

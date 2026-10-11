@@ -28,6 +28,10 @@ cp .env.example .env          # WWC_PUBLIC_URL, WWC_WAPT_URL, WWC_OIDC_ISSUER
 
 `init-secrets.sh` affiche la commande qui calcule le hash du secret OIDC pour Authelia. Aucun secret ne passe par une variable d'environnement ni par l'image. Chacun est monté en lecture seule dans `/run/secrets/`.
 
+### Clé de signature
+
+Les actions envoyées aux machines sont signées avec le certificat et la clé de l'administrateur WAPT. Les copier dans `secrets/signer.crt` et `secrets/signer.pem`. La clé doit rester **chiffrée** : sa passphrase n'est jamais stockée. Chaque opérateur la saisit dans la console, qui garde la clé ouverte pour sa seule session pendant `WWC_SIGNER_UNLOCK_MINUTES` (30 par défaut). Quand plus aucune session ne l'utilise, le processus de signature s'arrête et la clé déchiffrée disparaît de la mémoire.
+
 ## 3. Authelia
 
 Si Authelia tourne en conteneur sur le même hôte avec une configuration en fichiers, `deploy/authelia-register.sh` fait tout, en root :

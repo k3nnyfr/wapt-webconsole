@@ -19,7 +19,9 @@ RUN set -eux; \
     apt-get update; \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates libatomic1 python3; \
     rm -rf /var/lib/apt/lists/*; \
-    useradd --uid 10001 --home-dir /app --no-create-home app
+    useradd --uid 10001 --home-dir /app --no-create-home app; \
+    # audit journal; a named volume mounted here starts with this owner
+    install -d -o 10001 -g 10001 -m 700 /data
 COPY --from=wapt /opt/wapt /opt/wapt
 COPY --from=ghcr.io/astral-sh/uv:0.11.31 /uv /usr/local/bin/uv
 

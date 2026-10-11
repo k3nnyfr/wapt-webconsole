@@ -10,10 +10,12 @@ from urllib.parse import urlsplit
 from fastapi import Depends, FastAPI, HTTPException, Path, Request, Response, WebSocket, WebSocketDisconnect
 from starlette.middleware.sessions import SessionMiddleware
 
-from . import __version__, auth
+from . import __version__, auth, operations
 from .auth import User, require
 from .config import Settings, role_at_least
+from .journal import Journal
 from .live import LiveHub
+from .signing import Signer, SignerConfig
 from .wapt import details, repository
 from .wapt.client import WaptClient, WaptError
 from .wapt.hosts import Inventory
@@ -37,9 +39,15 @@ def create_app(settings: Settings | None = None, wapt: WaptClient | None = None)
         app.state.inventory = Inventory(app.state.wapt)
         app.state.live = LiveHub(app.state.inventory, settings.live_interval, settings.session_max_age)
         app.state.icons = {}
+        app.state.journal = Journal(settings.data_dir / "journal.sqlite", settings.journal_retention_days)
+        app.state.signer = Signer(SignerConfig(
+            waptpython=settings.waptpython, script=settings.signer_script,
+            certificate=str(settings.signer_certificate_file or ""), private_key=str(settings.signer_key_file or "")),
+            ttl=settings.signer_unlock_minutes * 60)
         try:
             yield
         finally:
+            await app.state.signer.close()
             await app.state.live.close()
             await app.state.wapt.close()
 
@@ -50,6 +58,7 @@ def create_app(settings: Settings | None = None, wapt: WaptClient | None = None)
     app.add_middleware(SessionMiddleware, secret_key=settings.session_secret, session_cookie="wwc_session",
                        max_age=settings.session_max_age, same_site="lax", https_only=settings.https)
     app.include_router(auth.router)
+    app.include_router(operations.router)
 
     @app.get("/api/health", tags=["system"])
     async def health():

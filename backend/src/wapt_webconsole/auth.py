@@ -95,6 +95,7 @@ async def callback(request: Request):
                 groups=groups, role=role, login_at=time.time())
     request.session["user"] = user.model_dump()
     request.session["csrf"] = secrets.token_urlsafe(32)
+    request.session["sid"] = secrets.token_urlsafe(16)      # identifies the session for the signing key unlock
     log.info("Login of %s (%s)", username, role)
     return RedirectResponse(target, status_code=303)
 

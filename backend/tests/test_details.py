@@ -63,7 +63,8 @@ async def test_softwares():
 def test_routes_validate_uuid(tmp_path):
     secret = tmp_path / "s"
     secret.write_text("x" * 40)
-    app = create_app(Settings(session_secret_file=secret, public_url="http://testserver"), wapt=FakeWapt())
+    app = create_app(Settings(session_secret_file=secret, public_url="http://testserver", data_dir=tmp_path),
+                     wapt=FakeWapt())
     app.state.oauth = SimpleNamespace(create_client=lambda n: True, oidc=SimpleNamespace(
         authorize_access_token=_token, userinfo=_none))
     with TestClient(app) as client:

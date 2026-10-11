@@ -3,11 +3,15 @@
 
 import {
   ActionIcon,
+  Affix,
   Alert,
   Badge,
+  Button,
   Card,
+  Checkbox,
   Group,
   Loader,
+  Paper,
   ScrollArea,
   Select,
   SimpleGrid,
@@ -20,16 +24,10 @@ import {
   UnstyledButton,
 } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
-import { notifications } from "@mantine/notifications";
 import {
   IconChevronDown,
   IconChevronUp,
-  IconCopy,
   IconDotsVertical,
-  IconDownload,
-  IconId,
-  IconPackage,
-  IconPlugConnected,
   IconRefresh,
   IconSearch,
   IconSelector,
@@ -40,9 +38,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { useMatch, useNavigate } from "react-router";
 
-import { type Host, type HostsAnswer, type Me, api } from "../api";
-import { type Action, useActionMenu } from "../components/ActionMenu";
+import { type Host, type HostsAnswer, type Me, api, roleAtLeast } from "../api";
+import { useActionMenu } from "../components/ActionMenu";
 import { useLiveHosts } from "../live";
+import { useHostMenu } from "../ops/actions";
 import ColumnsPicker from "./ColumnsPicker";
 import Filters, { ActiveFilters, type FilterValues, matchesFilters } from "./Filters";
 import HostDetail from "./HostDetail";
@@ -72,30 +71,6 @@ const QUICK_FILTERS: { id: QuickFilter; label: string; color: string; test: (h: 
 
 const SEARCHED = ["name", "description", "last_user", "main_ip", "os_name", "serial", "model", "dnsdomain"] as const;
 
-function copy(text: string, what: string) {
-  navigator.clipboard
-    .writeText(text)
-    .then(() => notifications.show({ message: `${what} copié`, color: "green" }))
-    .catch(() => notifications.show({ message: "Copie impossible", color: "red" }));
-}
-
-function hostActions(h: Host, open: (uuid: string) => void): Action[] {
-  const soon = { disabled: true, hint: "v0.4" };
-  return [
-    { key: "open", label: "Ouvrir la fiche", icon: <IconId size={16} />, onClick: () => open(h.uuid) },
-    { key: "update", label: "Mettre à jour l'index", icon: <IconRefresh size={16} />, ...soon },
-    { key: "upgrade", label: "Appliquer les mises à jour", icon: <IconDownload size={16} />, ...soon },
-    { key: "install", label: "Installer un paquet…", icon: <IconPackage size={16} />, ...soon },
-    { key: "wol", label: "Réveiller (Wake-on-LAN)", icon: <IconPlugConnected size={16} />, ...soon },
-    { key: "copy-name", label: "Copier le nom", icon: <IconCopy size={16} />, onClick: () => copy(h.name, "Nom") },
-    ...(h.main_ip
-      ? [{ key: "copy-ip", label: "Copier l'adresse IP", icon: <IconCopy size={16} />,
-           onClick: () => copy(h.main_ip, "Adresse IP") }]
-      : []),
-    { key: "copy-uuid", label: "Copier l'UUID", icon: <IconCopy size={16} />, onClick: () => copy(h.uuid, "UUID") },
-  ];
-}
-
 function Indicator({ label, value, color, active, compact, onClick }: {
   label: string; value: number; color: string; active: boolean; compact: boolean; onClick: () => void;
 }) {
@@ -124,7 +99,16 @@ export default function HostsPage({ me }: { me: Me }) {
   const selected = useMatch("/hosts/:uuid")?.params.uuid;
   const navigate = useNavigate();
   const open = (uuid: string) => navigate(`/hosts/${uuid}`);
-  const actions = (h: Host) => hostActions(h, open);
+  const hostMenu = useHostMenu(me);
+  const actions = (h: Host) => hostMenu([h], open);
+  const canAct = roleAtLeast(me.user.role, "operator");
+  const [checked, setChecked] = useState<Set<string>>(new Set());
+  const [selectMode, setSelectMode] = useState(false);     // phone: tapping a card selects it instead of opening it
+  const toggle = (uuid: string) => {
+    const next = new Set(checked);
+    if (!next.delete(uuid)) next.add(uuid);
+    setChecked(next);
+  };
   const [search, setSearch] = useState("");
   const [quick, setQuick] = useState<QuickFilter>("all");
   const [filters, setFilters] = useState<FilterValues>({});
@@ -154,6 +138,24 @@ export default function HostsPage({ me }: { me: Me }) {
       !q || SEARCHED.some((k) => String(h[k] ?? "").toLowerCase().includes(q)) || h.ips.some((ip) => ip.includes(q));
     return sortHosts(all.filter((h) => test(h) && matchesFilters(h, filters) && matches(h)), sort);
   }, [all, quick, filters, search, sort]);
+
+  const checkedHosts = all.filter((h) => checked.has(h.uuid));
+  const allShownChecked = hosts.length > 0 && hosts.every((h) => checked.has(h.uuid));
+  const clearSelection = () => { setChecked(new Set()); setSelectMode(false); };
+  const selectionBar = checkedHosts.length > 0 && (
+    <Paper withBorder shadow="md" radius="md" p="xs">
+      <Group justify="space-between" wrap="nowrap">
+        <Text size="sm" fw={600}>{checkedHosts.length} sélectionnée{checkedHosts.length > 1 ? "s" : ""}</Text>
+        <Group gap="xs" wrap="nowrap">
+          <Button size="xs" variant="default" onClick={clearSelection}>Désélectionner</Button>
+          <Button size="xs" leftSection={<IconDotsVertical size={14} />}
+                  onClick={(e) => openFrom(e, `${checkedHosts.length} machines`, hostMenu(checkedHosts))}>
+            Actions
+          </Button>
+        </Group>
+      </Group>
+    </Paper>
+  );
 
   const clickHeader = (id: string) =>
     setSort(sort.column === id ? { column: id, desc: !sort.desc }
@@ -212,6 +214,12 @@ export default function HostsPage({ me }: { me: Me }) {
             </ActionIcon>
             <Filters hosts={all} filters={filters} onChange={setFilters} />
           </Group>
+          {canAct && (
+            <Button variant={selectMode ? "light" : "default"} size="md"
+                    onClick={() => (selectMode ? clearSelection() : setSelectMode(true))}>
+              {selectMode ? "Terminer la sélection" : "Sélectionner des machines"}
+            </Button>
+          )}
         </Stack>
       ) : (
         <Group gap="xs" wrap="nowrap">
@@ -227,15 +235,19 @@ export default function HostsPage({ me }: { me: Me }) {
       {isLoading && <Loader />}
       {error && <Alert color="red" title="Inventaire indisponible">{(error as Error).message}</Alert>}
       {data && !hosts.length && <Text c="dimmed">Aucune machine ne correspond.</Text>}
+      {!phone && selectionBar}
+      {phone && selectionBar && <Affix position={{ bottom: 76, left: 12, right: 12 }}>{selectionBar}</Affix>}
 
       {phone ? (
         <Stack gap="xs">
           {hosts.map((h) => (
             <Card key={h.uuid} withBorder padding="sm" radius="md" {...bind(h.name, actions(h))}
-                  onClick={() => open(h.uuid)}
+                  onClick={() => (selectMode ? toggle(h.uuid) : open(h.uuid))}
+                  bg={checked.has(h.uuid) ? "var(--mantine-color-blue-light)" : undefined}
                   style={{ userSelect: "none", WebkitTouchCallout: "none", cursor: "pointer" }}>
               <Group justify="space-between" wrap="nowrap" align="flex-start">
-                <Stack gap={4} style={{ minWidth: 0 }}>
+                {selectMode && <Checkbox checked={checked.has(h.uuid)} readOnly size="md" mt={2} aria-label="Sélection" />}
+                <Stack gap={4} style={{ minWidth: 0, flex: 1 }}>
                   <Text fw={600} truncate>{h.name}</Text>
                   <Text size="sm" c="dimmed" truncate>
                     {[h.os_name, h.os_release].filter(Boolean).join(" · ")}
@@ -258,6 +270,14 @@ export default function HostsPage({ me }: { me: Me }) {
           <Table highlightOnHover stickyHeader verticalSpacing={6} fz="sm">
             <Table.Thead>
               <Table.Tr>
+                {canAct && (
+                  <Table.Th w={36}>
+                    <Checkbox aria-label="Tout sélectionner" checked={allShownChecked}
+                              indeterminate={!allShownChecked && hosts.some((h) => checked.has(h.uuid))}
+                              onChange={() => setChecked(allShownChecked ? new Set()
+                                : new Set([...checked, ...hosts.map((h) => h.uuid)]))} />
+                  </Table.Th>
+                )}
                 {columns.map((id) => (
                   <Table.Th key={id} style={{ whiteSpace: "nowrap", cursor: "pointer", userSelect: "none" }}
                             onClick={() => clickHeader(id)}
@@ -275,7 +295,13 @@ export default function HostsPage({ me }: { me: Me }) {
               {hosts.map((h) => (
                 <Table.Tr key={h.uuid} {...bind(h.name, actions(h))} onClick={() => open(h.uuid)}
                           style={{ cursor: "pointer" }}
-                          bg={h.uuid === selected ? "var(--mantine-color-blue-light)" : undefined}>
+                          bg={h.uuid === selected || checked.has(h.uuid) ? "var(--mantine-color-blue-light)" : undefined}>
+                  {canAct && (
+                    <Table.Td onClick={(e) => e.stopPropagation()}>
+                      <Checkbox aria-label={`Sélectionner ${h.name}`} checked={checked.has(h.uuid)}
+                                onChange={() => toggle(h.uuid)} />
+                    </Table.Td>
+                  )}
                   {columns.map((id) => (
                     <Table.Td key={id} style={COLUMN_BY_ID[id].nowrap ? { whiteSpace: "nowrap" } : undefined}>
                       <Cell column={COLUMN_BY_ID[id]} host={h} />
@@ -288,7 +314,8 @@ export default function HostsPage({ me }: { me: Me }) {
           </Table>
         </ScrollArea>
       )}
-      <HostDetail uuid={selected} onClose={() => navigate("/")} />
+      {phone && selectionBar && <div style={{ height: 64 }} />}
+      <HostDetail uuid={selected} me={me} onClose={() => navigate("/")} />
     </Stack>
   );
 }

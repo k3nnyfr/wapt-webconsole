@@ -64,6 +64,10 @@ class WaptClient:
 
     async def call(self, method: str, path: str, **kwargs) -> Any:
         """``result`` of an API call; raises ``WaptError`` unless the answer is HTTP 200 with ``success: true``."""
+        return (await self.call_raw(method, path, **kwargs)).get("result")
+
+    async def call_raw(self, method: str, path: str, **kwargs) -> dict:
+        """Whole answer (``result``, ``msg``...) of an API call, with the same checks as ``call``."""
         await self._ensure_login()
         resp = await self._http.request(method, path, **kwargs)
         if resp.status_code == 401:
@@ -72,7 +76,7 @@ class WaptClient:
         payload = _json(resp)
         if resp.status_code != 200 or not payload.get("success", False):
             raise WaptError(f"{path}: {payload.get('msg') or f'HTTP {resp.status_code}'}", resp.status_code)
-        return payload.get("result")
+        return payload
 
     async def fetch(self, url: str) -> httpx.Response:
         """Unauthenticated GET of a public repository file (icons), with the client TLS settings."""

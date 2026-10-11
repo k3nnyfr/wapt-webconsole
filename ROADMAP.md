@@ -43,11 +43,14 @@ Retours du premier essai sur wapt-console.example.org (2026-10-11) intégrés.
 - [x] Statut en direct par WebSocket (backend seul à interroger le serveur WAPT, envoi des seules machines modifiées, reconnexion automatique)
 
 ## v0.4 — Actions à distance
-- [ ] Déverrouillage de la clé (passphrase en mémoire, durée limitée)
-- [ ] Menus contextuels machines et paquets (clic droit, appui long, bouton `⋮`, feuille d'actions sur mobile) : update, upgrade, installer, désinstaller, oublier, annuler, renvoyer l'inventaire, changer la description, redémarrer l'agent, Wake-on-LAN
-- [ ] Audit, redémarrage et extinction de la machine, si les agents Discovery les acceptent
-- [ ] Suivi des tâches et résultats par machine
-- [ ] Journal d'audit consultable
+- [x] Déverrouillage de la clé par session (passphrase vérifiée par WAPT puis oubliée, 30 min par défaut, 5 essais par 10 min), processus de signature unique arrêté quand plus personne ne l'utilise
+- [x] Menus contextuels machines et paquets (clic droit, appui long, bouton `⋮`, feuille d'actions sur mobile) : update, upgrade, installer, désinstaller, oublier, annuler, renvoyer l'inventaire, audit, changer la description, redémarrer l'agent, Wake-on-LAN
+- [x] Redémarrage et extinction de la machine, proposés seulement si l'agent les autorise (`allow_remote_reboot`, `allow_remote_shutdown`)
+- [x] Sélection multiple et actions groupées ; confirmation obligatoire pour les actions destructrices, nombre de machines à retaper dès 10
+- [x] Rôles par action : opérateur (update, upgrade, installation, inventaire, audit, annulation, Wake-on-LAN), admin (désinstallation, oubli, description, agent, redémarrage, extinction)
+- [x] Suivi des tâches de l'agent dans la fiche machine (en cours avec progression, en attente, en erreur, terminées, journaux)
+- [x] Journal d'audit (SQLite, volume persistant) : déverrouillages et actions, par utilisateur, IP, cibles, résultat
+- [ ] Vérifier sur un agent Discovery l'audit à distance (`trigger_host_audit`)
 
 ## v0.5 — Affectation et groupes
 - [ ] Ajouter ou retirer des paquets et des groupes sur une sélection de machines, avec aperçu avant/après
